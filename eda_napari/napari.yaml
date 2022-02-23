@@ -4,7 +4,13 @@ contributions:
     - id: eda-napari.say_hi
       title: Say hello, world!
       python_name: eda_napari:show_hello_message
+    - id: eda-napari.plot_line
+      title: Plot Line
+      python_name: eda_napari:show_plot
   widgets:
     - command: eda-napari.say_hi  # note, same as command.id above
       display_name: Hello World
+      autogenerate: true
+    - command: eda-napari.plot_line # note, same as command.id above
+      display_name: Plot line
       autogenerate: true
