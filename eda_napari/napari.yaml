@@ -8,9 +8,7 @@ contributions:
       title: Plot Line
       python_name: eda_napari._widget:show_plot
   widgets:
-    - command: eda-napari.my_widget  # note, same as command.id above
+    - command: eda-napari.my_widget  
       display_name: My widget
-      autogenerate: true
-    - command: eda-napari.plot_line # note, same as command.id above
-      display_name: Plot line
-      autogenerate: true
+    - command: eda-napari.plot_line  
+      display_name: plot line
