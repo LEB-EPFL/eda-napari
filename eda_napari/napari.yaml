@@ -1,0 +1,16 @@
+name: eda-napari
+contributions:
+  commands:
+    - id: eda-napari.my_widget
+      title: open my widget
+      python_name: eda_napari._widget:MyWidget
+    - id: eda-napari.plot_line
+      title: Plot Line
+      python_name: eda_napari._widget:show_plot
+  widgets:
+    - command: eda-napari.my_widget  # note, same as command.id above
+      display_name: My widget
+      autogenerate: true
+    - command: eda-napari.plot_line # note, same as command.id above
+      display_name: Plot line
+      autogenerate: true
