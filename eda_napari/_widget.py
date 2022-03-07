@@ -14,7 +14,18 @@ from qtpy.QtWidgets import QPushButton, QVBoxLayout
 import napari 
 
 
-Widget = Union["magicgui.widgets.Widget", "qtpy.QtWidgets.QWidget"]
+#install tiff file reader plugin
+from napari_tifffile_reader import napari_get_reader
+from napari_tifffile_reader.napari_tifffile_reader import (imagecodecs_reader,
+                                             imagej_reader,
+                                             tifffile_reader,
+                                             zip_reader)
+#import ctypes
+                                               
+
+Widget = Union["magicgui.widgets.Widget", "qtpy.QtWidgets.QWidget"] 
+#Union is a type: it forms the math union. 
+#It means the widget could be a magicgui widget or a qtpy widget.
 
 
 class MyWidget(QWidget):
@@ -27,7 +38,10 @@ class MyWidget(QWidget):
       self.layout=QVBoxLayout(self)
       self._init_mpl_widgets()
       self.layout.addWidget(self.run_function)
-        
+      #open up tiff file
+      self.image_data = napari_get_reader('/Users/stevenbrown/software/images/cell_with_isim.tif') 
+      self.print_data()
+
    def _init_mpl_widgets(self):
       """Method to initialise a matplotlib figure canvas and the VoxelPlotter UI.
 
@@ -37,9 +51,6 @@ class MyWidget(QWidget):
       # set up figure and axe objects
       self.fig = Figure()
       self.canvas = FigureCanvas(self.fig)
-      # TODO: find a way to include the toolbar with a compatible style
-      #self.toolbar = NavigationToolbar(self.canvas, self)
-      # self.toolbar.setStyleSheet("color:Black;")
       self.ax = self.fig.add_subplot(111)
       self.ax.annotate('Hold "Shift" while moving over the image'
                         '\nto plot pixel signal over time',
@@ -49,23 +60,31 @@ class MyWidget(QWidget):
                         size=15,
                         bbox=dict(facecolor=(0.9, 0.9, 0.9), alpha=1, boxstyle='square'))
 
-      # layout.addWidget(self.toolbar)
       self.layout.addWidget(self.canvas)
       self.setWindowTitle('Voxel Plotter')
 
    def plot_line(self):
       self.ax.plot([1,2,3,4])
       self.fig.canvas.draw()
+
+   def print_data(self):
+      show_info('hi') #show info to display in napari 
+      #ERROR: can't show self.image_data, it shows and address then an error
       
 
 from magicgui import magic_factory
+# decorate your function with the @magicgui decorator
 @magic_factory #what does this do? with it doesn't work for me
 def show_plot(
     image: "napari.types.ImageData", threshold: int
    ) -> "napari.types.LabelsData":
-    """Generate thresholded image.
+    """magicgui allows to quickly create a widget after defining an input and output type.
+    This test creates thresholded image.
 
     This pattern uses magicgui.magic_factory directly to turn a function
     into a callable that returns a widget.
     """
     return (image > threshold).astype(int)
+
+
+

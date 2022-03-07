@@ -5,7 +5,7 @@ contributions:
       title: open my widget
       python_name: eda_napari._widget:MyWidget
     - id: eda-napari.plot_line
-      title: Plot Line
+      title: Magicgui widget test
       python_name: eda_napari._widget:show_plot
   widgets:
     - command: eda-napari.my_widget  
