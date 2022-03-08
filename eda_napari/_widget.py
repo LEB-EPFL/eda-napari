@@ -39,7 +39,8 @@ class MyWidget(QWidget):
       self._init_mpl_widgets()
       self.layout.addWidget(self.run_function)
       #open up tiff file
-      self.image_data = napari_get_reader('/Users/stevenbrown/software/images/cell_with_isim.tif') 
+      self.image_path = '/Users/stevenbrown/software/images/cell_with_isim.tif'
+      self.reader= napari_get_reader(self.image_path)
       self.print_data()
 
    def _init_mpl_widgets(self):
@@ -68,8 +69,9 @@ class MyWidget(QWidget):
       self.fig.canvas.draw()
 
    def print_data(self):
-      show_info('hi') #show info to display in napari 
-      #ERROR: can't show self.image_data, it shows and address then an error
+      #show_info('hi')
+      show_info(self.reader(self.image_path)) #show info to display in napari 
+      #ERROR: can't show self.image_data, it shows data but causes an error some how
       
 
 from magicgui import magic_factory
