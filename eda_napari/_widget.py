@@ -16,10 +16,8 @@ import napari
 
 #install tiff file reader plugin
 from napari_tifffile_reader import napari_get_reader
-from napari_tifffile_reader.napari_tifffile_reader import (imagecodecs_reader,
-                                             imagej_reader,
-                                             tifffile_reader,
-                                             zip_reader)
+import tifffile
+
 #import ctypes
                                                
 
@@ -39,8 +37,7 @@ class MyWidget(QWidget):
       self._init_mpl_widgets()
       self.layout.addWidget(self.run_function)
       #open up tiff file
-      self.image_path = '/Users/stevenbrown/software/images/cell_with_isim.tif'
-      self.reader= napari_get_reader(self.image_path)
+      self.image_path = self._viewer.layers[0].source.path #only works if file has been added to layer, possible to find current layer?
       self.print_data()
 
    def _init_mpl_widgets(self):
@@ -69,10 +66,10 @@ class MyWidget(QWidget):
       self.fig.canvas.draw()
 
    def print_data(self):
-      #show_info('hi')
-      show_info(self.reader(self.image_path)) #show info to display in napari 
-      #ERROR: can't show self.image_data, it shows data but causes an error some how
       
+      print(self.image_path)
+      #image_1=tifffile.TiffFile(self.image_path)
+
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
