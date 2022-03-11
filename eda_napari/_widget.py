@@ -17,6 +17,7 @@ import napari
 #install tiff file reader plugin
 from napari_tifffile_reader import napari_get_reader
 import tifffile
+import xmltodict
 
 #import ctypes
                                                
@@ -31,14 +32,13 @@ class MyWidget(QWidget):
    #def __init__(self, viewer: 'napari.viewer.Viewer'):
       super().__init__()
       self._viewer = napari_viewer
-      self.run_function=QPushButton('Run function')
-      self.run_function.clicked.connect(self.plot_line)
+      self.run_function=QPushButton('Plot frame times')
+      self.run_function.clicked.connect(self.plot_times)
       self.layout=QVBoxLayout(self)
       self._init_mpl_widgets()
       self.layout.addWidget(self.run_function)
       #open up tiff file
       self.image_path = self._viewer.layers[0].source.path #only works if file has been added to layer, possible to find current layer?
-      self.print_data()
 
    def _init_mpl_widgets(self):
       """Method to initialise a matplotlib figure canvas and the VoxelPlotter UI.
@@ -50,14 +50,9 @@ class MyWidget(QWidget):
       self.fig = Figure()
       self.canvas = FigureCanvas(self.fig)
       self.ax = self.fig.add_subplot(111)
-      self.ax.annotate('Hold "Shift" while moving over the image'
-                        '\nto plot pixel signal over time',
-                        (0.5, 0.5),
-                        ha='center',
-                        va='center',
-                        size=15,
-                        bbox=dict(facecolor=(0.9, 0.9, 0.9), alpha=1, boxstyle='square'))
-
+      self.ax.set_ylabel('Time [ms]')
+      self.ax.set_xlabel('Frame number')
+      self.ax.set_title('Evolution of elapsed time between frames')
       self.layout.addWidget(self.canvas)
       self.setWindowTitle('Voxel Plotter')
 
@@ -65,10 +60,35 @@ class MyWidget(QWidget):
       self.ax.plot([1,2,3,4])
       self.fig.canvas.draw()
 
-   def print_data(self):
+   def load_times(self,image_stack_path,channel=0):
+      """load frame times in ms from .ome.tif file for a certain channel"""
+      times=[]
+      #print(self.image_path)
+      with tifffile.TiffFile(image_stack_path) as tif:
+         XML_metadata= tif.ome_metadata #returns an  OME XML file, without () invokes the function without calling it, calling it causes an error
+         dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+         num_pages=len(tif.pages) #the number of images stacked
+         for frame in range(0,num_pages):
+            #time should be in either s or ms
+            if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==channel: #checks if correct channel
+               frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
+               if frame_time_unit== 's' :
+                  convert_unit_to_ms=1000
+                  times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+               elif frame_time_unit == 'ms':
+                  convert_unit_to_ms=1
+                  times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+               else:
+                  print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
       
-      print(self.image_path)
-      #image_1=tifffile.TiffFile(self.image_path)
+      return times
+         
+   def plot_times(self):
+      times=self.load_times(self.image_path)
+      #times = times-times[0] #start at 0 but error because list can't do the - operation
+      self.ax.plot(times)
+      self.fig.canvas.draw()
+
 
 
 from magicgui import magic_factory
