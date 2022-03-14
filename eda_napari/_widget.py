@@ -11,13 +11,15 @@ from magicgui import magic_factory
 from typing import Union
 import qtpy
 from qtpy.QtWidgets import QPushButton, QVBoxLayout
-import napari 
+import napari
+
 
 
 #install tiff file reader plugin
 from napari_tifffile_reader import napari_get_reader
 import tifffile
 import xmltodict
+from functools import partial
 
 #import ctypes
                                                
@@ -32,12 +34,15 @@ class MyWidget(QWidget):
    #def __init__(self, viewer: 'napari.viewer.Viewer'):
       super().__init__()
       self._viewer = napari_viewer
-      self.run_function=QPushButton('Plot frame times')
-      self.run_function.clicked.connect(self.plot_times)
+      #self._viewer.layers.events.inserted.connect(image_arithmetic.reset_choices)
+      self.run_button_times=QPushButton('Plot frame times')
+      self.run_button_times.clicked.connect(self.plot_times)
+      self.run_button_frame_r=QPushButton('Plot frame rate')
+      self.run_button_frame_r.clicked.connect(lambda: self.plot_frame_rate('Hz')) #connect signal to a lamda to allow default arguments of function to be called
       self.layout=QVBoxLayout(self)
       self._init_mpl_widgets()
-      self.layout.addWidget(self.run_function)
-      #open up tiff file
+      self.layout.addWidget(self.run_button_times)
+      self.layout.addWidget(self.run_button_frame_r)
       self.image_path = self._viewer.layers[0].source.path #only works if file has been added to layer, possible to find current layer?
 
    def _init_mpl_widgets(self):
@@ -48,13 +53,14 @@ class MyWidget(QWidget):
      """
       # set up figure and axe objects
       self.fig = Figure()
+      self.fig2 = Figure()
       self.canvas = FigureCanvas(self.fig)
+      self.canvas2 = FigureCanvas(self.fig2)
       self.ax = self.fig.add_subplot(111)
-      self.ax.set_ylabel('Time [ms]')
-      self.ax.set_xlabel('Frame number')
-      self.ax.set_title('Evolution of elapsed time between frames')
+      self.ax2 = self.fig2.add_subplot(111)
       self.layout.addWidget(self.canvas)
-      self.setWindowTitle('Voxel Plotter')
+      self.layout.addWidget(self.canvas2)
+      self.setWindowTitle('Plot frame rate or frame times')
 
    def plot_line(self):
       self.ax.plot([1,2,3,4])
@@ -82,14 +88,51 @@ class MyWidget(QWidget):
                   print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
       
       return times
-         
+   
+   
+   def get_times(self,channel=0):
+      """This function gets frame capture times for a specific channel and starts with time=0"""
+      times=self.load_times(self.image_path,channel)
+      times = [x - times[0] for x in times] #start at time 0
+      return times
+
+
    def plot_times(self):
-      times=self.load_times(self.image_path)
-      #times = times-times[0] #start at 0 but error because list can't do the - operation
+      self.ax.clear() #clear plot before plotting
+      self.ax.set_ylabel('Time [ms]')
+      self.ax.set_xlabel('Frame number')
+      self.ax.set_title('Evolution of elapsed time between frames')
+      times=self.get_times()
       self.ax.plot(times)
       self.fig.canvas.draw()
 
 
+   
+   def plot_frame_rate(self,unit_frame_r='Hz'):
+      """ The frame rate is calculate for each frame. Since the system is discrete it must be approximated.
+       For the first and last frame the last interval will be taken. For the others the avg of the previous 
+       and next interval will approximate the frame rate."""
+      if unit_frame_r=='Hz':
+         conversion_factor =1000
+      elif unit_frame_r=='kHz':
+         conversion_factor=1
+      else:
+         print('unit of frame rate not reconised: please use Hz or kHz')
+
+      self.ax2.clear() #clear plot before plotting
+      self.ax2.set_ylabel('Frame rate ['+unit_frame_r+']')
+      self.ax2.set_xlabel('Frame number')
+      self.ax2.set_title('Evolution of the Frame rate ')
+      times=self.get_times()
+      N_frames= len(times)
+      frame_rate=[1/abs(times[1]-times[0])]#for the first frame rate no avg can be computed
+      for i in range(1,N_frames-1):
+         avg_rate=0.5*(1/abs(times[i+1]-times[i]) + 1/abs(times[i]-times[i-1]))
+         frame_rate.append(avg_rate)
+      frame_rate.append(1/abs(times[1]-times[0])) #last frame rate
+      frame_rate = [x * conversion_factor for x in frame_rate] #convert to Hz or kHz
+      self.ax2.plot(frame_rate)
+      self.fig2.canvas.draw()
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
