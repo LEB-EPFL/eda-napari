@@ -34,16 +34,22 @@ class MyWidget(QWidget):
    #def __init__(self, viewer: 'napari.viewer.Viewer'):
       super().__init__()
       self._viewer = napari_viewer
-      #self._viewer.layers.events.inserted.connect(image_arithmetic.reset_choices)
-      self.run_button_times=QPushButton('Plot frame times')
-      self.run_button_times.clicked.connect(self.plot_times)
-      self.run_button_frame_r=QPushButton('Plot frame rate')
-      self.run_button_frame_r.clicked.connect(lambda: self.plot_frame_rate('Hz')) #connect signal to a lamda to allow default arguments of function to be called
+      self._viewer.layers.events.inserted.connect(self.plot_frame_data)
+      #self._viewer.dims.events.connect(self.plot_slider_position)  at the moment this causes an error
       self.layout=QVBoxLayout(self)
       self._init_mpl_widgets()
-      self.layout.addWidget(self.run_button_times)
-      self.layout.addWidget(self.run_button_frame_r)
-      self.image_path = self._viewer.layers[0].source.path #only works if file has been added to layer, possible to find current layer?
+      self.image_path=None
+      try:
+        self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
+      except (IndexError): # if no image is placed yet then Errors would occur
+          pass
+      
+      #self.run_button_times=QPushButton('Plot frame times')
+      #self.run_button_times.clicked.connect(self.plot_times)
+      #self.run_button_frame_r=QPushButton('Plot frame rate')
+      #self.run_button_frame_r.clicked.connect(lambda: self.plot_frame_rate('Hz')) #connect signal to a lamda to allow default arguments of function to be called
+      #self.layout.addWidget(self.run_button_times)
+      #self.layout.addWidget(self.run_button_frame_r)
 
    def _init_mpl_widgets(self):
       """Method to initialise a matplotlib figure canvas and the VoxelPlotter UI.
@@ -61,6 +67,12 @@ class MyWidget(QWidget):
       self.layout.addWidget(self.canvas)
       self.layout.addWidget(self.canvas2)
       self.setWindowTitle('Plot frame rate or frame times')
+      try:
+         self.plot_frame_data() #automatically plot frame data when Mywidget is called
+      except(IndexError): # if no image is placed yet then Errors would occur when the source is retrieved
+          pass
+      
+      
 
    def plot_line(self):
       self.ax.plot([1,2,3,4])
@@ -106,33 +118,52 @@ class MyWidget(QWidget):
       self.ax.plot(times)
       self.fig.canvas.draw()
 
-
-   
-   def plot_frame_rate(self,unit_frame_r='Hz'):
+   def get_frame_rate(self,unit_frame_r='Hz'):
       """ The frame rate is calculate for each frame. Since the system is discrete it must be approximated.
        For the first and last frame the last interval will be taken. For the others the avg of the previous 
        and next interval will approximate the frame rate."""
       if unit_frame_r=='Hz':
-         conversion_factor =1000
+         conversion_factor =1000     #convert to kHz to Hz
       elif unit_frame_r=='kHz':
-         conversion_factor=1
+         conversion_factor=1  #inital data is in kHz since time is diplayed in ms
       else:
          print('unit of frame rate not reconised: please use Hz or kHz')
 
+      times=self.get_times()
+      N_frames= len(times)
+      frame_rate=[conversion_factor/abs(times[1]-times[0])]#for the first frame rate no avg can be computed
+      for i in range(1,N_frames-1):
+         avg_rate=0.5*(1/abs(times[i+1]-times[i]) + 1/abs(times[i]-times[i-1]))
+         frame_rate.append(conversion_factor*avg_rate)
+      frame_rate.append(conversion_factor/abs(times[1]-times[0])) #last frame rate
+
+      return frame_rate
+   
+   def plot_frame_rate(self,unit_frame_r='Hz'):
+      frame_rate=self.get_frame_rate()
       self.ax2.clear() #clear plot before plotting
       self.ax2.set_ylabel('Frame rate ['+unit_frame_r+']')
       self.ax2.set_xlabel('Frame number')
       self.ax2.set_title('Evolution of the Frame rate ')
-      times=self.get_times()
-      N_frames= len(times)
-      frame_rate=[1/abs(times[1]-times[0])]#for the first frame rate no avg can be computed
-      for i in range(1,N_frames-1):
-         avg_rate=0.5*(1/abs(times[i+1]-times[i]) + 1/abs(times[i]-times[i-1]))
-         frame_rate.append(avg_rate)
-      frame_rate.append(1/abs(times[1]-times[0])) #last frame rate
-      frame_rate = [x * conversion_factor for x in frame_rate] #convert to Hz or kHz
       self.ax2.plot(frame_rate)
       self.fig2.canvas.draw()
+
+   
+   def plot_frame_data(self):
+      self.image_path = self._viewer.layers[0].source.path #update image_path
+      self.plot_times()
+      self.plot_frame_rate()
+
+   def plot_slider_position(self):
+     current_frame=self._viewer.dims.events.current_step
+     times=self.get_times()
+     frame_rate=self.get_frame_rate()
+     self.ax.axvline(current_frame,times[0],times[-1])
+     self.ax2.axvline(current_frame,0,max(frame_rate))
+     self.fig1.canvas.draw()
+     self.fig2.canvas.draw()
+
+     
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
