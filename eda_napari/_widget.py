@@ -35,7 +35,7 @@ class MyWidget(QWidget):
       super().__init__()
       self._viewer = napari_viewer
       self._viewer.layers.events.inserted.connect(self.plot_frame_data)
-      #self._viewer.dims.events.connect(self.plot_slider_position)  at the moment this causes an error
+      self._viewer.dims.events.current_step.connect(self.plot_slider_position) # at the moment this causes an error
       self.layout=QVBoxLayout(self)
       self._init_mpl_widgets()
       self.image_path=None
@@ -150,18 +150,22 @@ class MyWidget(QWidget):
 
    
    def plot_frame_data(self):
+     
       self.image_path = self._viewer.layers[0].source.path #update image_path
       self.plot_times()
       self.plot_frame_rate()
+      self.line_1=self.ax.axvline(0,0,1,linewidth=1, color='k')
+      self.line_2=self.ax2.axvline(0,0,1,linewidth=1, color='k')
 
-   def plot_slider_position(self):
-     current_frame=self._viewer.dims.events.current_step
-     times=self.get_times()
-     frame_rate=self.get_frame_rate()
-     self.ax.axvline(current_frame,times[0],times[-1])
-     self.ax2.axvline(current_frame,0,max(frame_rate))
-     self.fig1.canvas.draw()
-     self.fig2.canvas.draw()
+   def plot_slider_position(self,event): #event information stored in "event"
+      current_frame=event.source.current_step[0]
+      #times=self.get_times()
+      #frame_rate=self.get_frame_rate()
+      self.line_1.set_xdata(current_frame)
+      #self.line_1.set_ydata(current_frame)
+      self.line_2.set_xdata(current_frame)
+      self.fig.canvas.draw()
+      self.fig2.canvas.draw()
 
      
 
