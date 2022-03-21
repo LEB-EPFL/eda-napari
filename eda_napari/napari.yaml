@@ -1,14 +1,14 @@
 name: eda-napari
 contributions:
   commands:
-    - id: eda-napari.my_widget
+    - id: eda-napari.frame_rate_widget
       title: open my widget
-      python_name: eda_napari._widget:MyWidget
+      python_name: eda_napari._widget:Frame_rate_Widget
     - id: eda-napari.plot_line
       title: Magicgui widget test
       python_name: eda_napari._widget:show_plot
   widgets:
-    - command: eda-napari.my_widget  
-      display_name: My widget
+    - command: eda-napari.frame_rate_widget 
+      display_name: Plot Frame rate
     - command: eda-napari.plot_line  
       display_name: plot line

@@ -1,0 +1,30 @@
+# Set black background default line colors to white. 
+
+lines.color: black
+patch.edgecolor: black
+
+text.color: white
+
+axes.facecolor: white
+axes.edgecolor: black
+axes.labelcolor: white
+axes.prop_cycle: cycler('color', ['k', 'feffb3', 'bfbbd9', 'fa8174', '81b1d2', 'fdb462', 'b3de69', 'bc82bd', 'ccebc4', 'ffed6f'])
+
+xtick.color: white
+ytick.color: white
+
+grid.color: 0.8
+axes.grid: True		#by default grid
+axes.grid.which: major
+
+
+figure.facecolor: 49525c
+figure.edgecolor: 49525c
+
+savefig.facecolor: black
+savefig.edgecolor: black
+
+
+
+#automatically adjust padding
+figure.autolayout: True 
