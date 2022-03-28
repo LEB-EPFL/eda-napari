@@ -1,5 +1,10 @@
-# Set black background default line colors to white. 
+#font size
+font.size:8.0
+axes.titlesize: 12.0
+axes.labelsize: 10.0
 
+
+# Set black background default line colors to white. 
 lines.color: black
 patch.edgecolor: black
 
@@ -28,3 +33,5 @@ savefig.edgecolor: black
 
 #automatically adjust padding
 figure.autolayout: True 
+
+
