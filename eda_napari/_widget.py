@@ -50,6 +50,7 @@ class Frame_rate_Widget(QWidget):
       self.button_axis_change.clicked.connect(self.change_axis)
       self.layout.addWidget(self.button_axis_change)
       self.frame_rate_label = QLabel("Frame rate = : ")
+      self.frame_rate_label.setMaximumHeight(70)
       self.layout.addWidget(self.frame_rate_label)
    
      
