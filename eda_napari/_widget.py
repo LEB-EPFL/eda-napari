@@ -20,7 +20,7 @@ import tifffile
 import xmltodict
 
 from PIL import Image
-from skimage import data
+from skimage.filters import threshold_otsu
 
 
 
@@ -54,13 +54,11 @@ class Frame_rate_Widget(QWidget):
       self.channel=0
       self.frame_x_axis_time=True
 
-      self._viewer.layers.events.inserted.connect(self.plot_frame_data)
-      self._viewer.dims.events.current_step.connect(self.plot_slider_position) 
+      
 
       self.layout=QVBoxLayout(self)
       self.grid_layout = QGridLayout()
      
-      #self._init_mpl_widgets()
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
@@ -93,10 +91,12 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_value.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
   
-      self._init_mpl_widgets()
+      self._init_mpl_widgets() 
       self.layout.addWidget(self.button_axis_change)
       self.layout.addLayout(self.grid_layout)
-      
+      self._viewer.layers.events.inserted.connect(self.plot_frame_data)
+      self._viewer.dims.events.current_step.connect(self.plot_slider_position)
+      self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
       
       #init channel for slow motion
 
@@ -126,6 +126,7 @@ class Frame_rate_Widget(QWidget):
          self.plot_frame_data() #automatically plot frame data when Mywidget is called
       except(IndexError): # if no image is placed yet then Errors would occur when the source is retrieved
           pass
+      self.create_SlowMo_icon() #WOoW
       
       
    def get_times(self):
@@ -235,7 +236,8 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#init Qlabels
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
-      #self.create_SlowMo_icon() #Woow to be corrected causes errors
+      self.slow_mo()
+      
       
    def plot_slider_position(self,event): #event information stored in "event"
       """ Method plots and updates slider position on the canvas.
@@ -257,8 +259,8 @@ class Frame_rate_Widget(QWidget):
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
       self.fig.canvas.draw()
-      
-      
+
+     
 
    def change_axis(self):
       self.frame_x_axis_time=not self.frame_x_axis_time
@@ -276,25 +278,26 @@ class Frame_rate_Widget(QWidget):
       path =Path(__file__).parents[2].as_posix() #get path parent parent
       img=Image.open(path+'/images/snail/snails.png')
       numpydata=np.asarray(img)#display as np array as add_image takes an array as input
-      size=2#len(self.time_data)
-      stack_data=np.empty((size,numpydata.shape[0],numpydata.shape[1],numpydata.shape[2]))
-      for i in range(0,size): #create stack identical images
-         stack_data[i]=numpydata
+      self._viewer.add_image(numpydata, name='Slow motion')
+      self.slow_mo_channel=self._viewer.layers.index('Slow motion')
+      self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
       
-      self._viewer.add_image(stack_data[0], name='Slow motion')
-      #woooe why not the same as stack_data[0] == numpydata
-      
-      #self._viewer.add_image(data.astronaut(), rgb=True, name='Slow motion')
-      #self._viewer.open(path, name='cell')
+   def update_slowMo_icon(self,event):
+      if(self.slow_mo_array[event.source.current_step[0]]):
+         self._viewer.layers[self.slow_mo_channel].visible=True
+      else:
+         self._viewer.layers[self.slow_mo_channel].visible=False
 
-      #tif1=tifffile.TiffFile('/Users/stevenbrown/software/images/napari_example2/steven_2_MMStack_Pos0.ome.tif')
-      #tif2=tifffile.TiffFile(path+'/images/snail/snail_slow_mo.tif')
-      #olume=tif.asarray()
-      #numpydata = np.asarray(img)
-      #self._viewer.add_image(numpydata, rgb=True)
-      #layer=
-      #self._viewer.add_layer(layer)
-      #change opacity or visible = False
+   def slow_mo(self):
+      size=len(self.time_data)
+      self.slow_mo_array=np.empty(size)
+      thresh=threshold_otsu(np.array(self.frame_rate_data))#threshold to determine weather slow motion or fast speed
+      for i in range(0,size):
+         if self.frame_rate_data[i]>=thresh:
+            self.slow_mo_array[i]=False
+         else:
+            self.slow_mo_array[i]=True
+
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
