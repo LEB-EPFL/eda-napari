@@ -10,11 +10,23 @@ import magicgui
 from magicgui import magic_factory
 from typing import Union
 import qtpy
-from qtpy.QtWidgets import QVBoxLayout, QPushButton, QLabel
+from PyQt5.QtCore import Qt  #WooW is this problematic that PyQt5 is used
+import numpy as np
+from pathlib import Path
+
+from qtpy.QtWidgets import QVBoxLayout, QPushButton, QLabel, QGridLayout
 import napari
 import tifffile
 import xmltodict
-from PyQt5.QtCore import Qt
+
+from PIL import Image
+from skimage import data
+
+
+
+stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
+label_style = stylesheet.read()
+
 
 #Union is a type: it forms the math union.
 #It means the widget could be a magicgui widget or a qtpy widget.                                             
@@ -41,18 +53,53 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_data=None
       self.channel=0
       self.frame_x_axis_time=True
+
       self._viewer.layers.events.inserted.connect(self.plot_frame_data)
       self._viewer.dims.events.current_step.connect(self.plot_slider_position) 
+
       self.layout=QVBoxLayout(self)
-      self._init_mpl_widgets()
+      self.grid_layout = QGridLayout()
+     
+      #self._init_mpl_widgets()
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
+      
+
+      self.grid_layout.setAlignment(Qt.AlignHCenter) #Woow possible to do this with external style sheet
+      self.grid_layout.setSpacing(2)
+      self.grid_layout.setColumnMinimumWidth(0, 86)
+      self.grid_layout.setColumnStretch(1, 1)
+
+      self.frame_number_label = QLabel("Frame number: ")
+      self.frame_number_label.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_number_label, 1, 0)
+      self.frame_number_value=QLabel("-")
+      self.frame_number_value.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_number_value, 1, 1)
+
+
+      self.frame_time_label = QLabel("Time of frame capture: ")
+      self.frame_time_label.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_time_label, 2, 0)
+      self.frame_time_value=QLabel("-")
+      self.frame_time_value.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_time_value, 2, 1)
+
+      self.frame_rate_label = QLabel("Frame rate: ")
+      self.frame_rate_label.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_rate_label, 0, 0)
+      self.frame_rate_value=QLabel("-")
+      self.frame_rate_value.setStyleSheet(label_style)
+      self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
+  
+      self._init_mpl_widgets()
       self.layout.addWidget(self.button_axis_change)
-      self.frame_rate_label = QLabel("Frame rate = : ")
-      self.frame_rate_label.setMaximumHeight(70)
-      self.layout.addWidget(self.frame_rate_label)
-   
+      self.layout.addLayout(self.grid_layout)
+      
+      
+      #init channel for slow motion
+
      
       
       try:
@@ -184,6 +231,11 @@ class Frame_rate_Widget(QWidget):
          self.line_2.set_xdata(self.time_data[current_frame])#update according to x axis (time or frame)
       else: 
          self.line_2.set_xdata(current_frame)
+
+      self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#init Qlabels
+      self.frame_number_value.setText(str(current_frame))
+      self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
+      #self.create_SlowMo_icon() #Woow to be corrected causes errors
       
    def plot_slider_position(self,event): #event information stored in "event"
       """ Method plots and updates slider position on the canvas.
@@ -201,8 +253,11 @@ class Frame_rate_Widget(QWidget):
          self.line_2.set_xdata(current_frame)
          self.text_box.set_text('Current frame number = '+str(self._viewer.dims.current_step[0]))
 
-      self.frame_rate_label.setText('Current frame rate: ' + str(self.frame_rate_data[current_frame])+'\n Time: '+str(self.time_data[current_frame]) +'\n Frame number: '+ str(current_frame))
+      self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#update Qlabels
+      self.frame_number_value.setText(str(current_frame))
+      self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
       self.fig.canvas.draw()
+      
       
 
    def change_axis(self):
@@ -216,6 +271,30 @@ class Frame_rate_Widget(QWidget):
       self.button_axis_change.setText(button_txt)
       self.plot_frame_data()
 
+   def create_SlowMo_icon(self):
+      
+      path =Path(__file__).parents[2].as_posix() #get path parent parent
+      img=Image.open(path+'/images/snail/snails.png')
+      numpydata=np.asarray(img)#display as np array as add_image takes an array as input
+      size=2#len(self.time_data)
+      stack_data=np.empty((size,numpydata.shape[0],numpydata.shape[1],numpydata.shape[2]))
+      for i in range(0,size): #create stack identical images
+         stack_data[i]=numpydata
+      
+      self._viewer.add_image(stack_data[0], name='Slow motion')
+      #woooe why not the same as stack_data[0] == numpydata
+      
+      #self._viewer.add_image(data.astronaut(), rgb=True, name='Slow motion')
+      #self._viewer.open(path, name='cell')
+
+      #tif1=tifffile.TiffFile('/Users/stevenbrown/software/images/napari_example2/steven_2_MMStack_Pos0.ome.tif')
+      #tif2=tifffile.TiffFile(path+'/images/snail/snail_slow_mo.tif')
+      #olume=tif.asarray()
+      #numpydata = np.asarray(img)
+      #self._viewer.add_image(numpydata, rgb=True)
+      #layer=
+      #self._viewer.add_layer(layer)
+      #change opacity or visible = False
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
