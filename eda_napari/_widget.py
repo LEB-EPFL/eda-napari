@@ -275,8 +275,8 @@ class Frame_rate_Widget(QWidget):
 
    def create_SlowMo_icon(self):
       
-      path =Path(__file__).parents[2].as_posix() #get path parent parent
-      img=Image.open(path+'/images/snail/snails.png')
+      path =Path(__file__).parents[1].as_posix() #get path parent
+      img=Image.open(path+'/images/snails.png')
       numpydata=np.asarray(img)#display as np array as add_image takes an array as input
       self._viewer.add_image(numpydata, name='Slow motion')
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')
