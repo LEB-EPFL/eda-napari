@@ -53,6 +53,7 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_data=None
       self.channel=0
       self.frame_x_axis_time=True
+      self.setStyleSheet(label_style)
 
       
 
@@ -70,25 +71,19 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.setColumnStretch(1, 1)
 
       self.frame_number_label = QLabel("Frame number: ")
-      self.frame_number_label.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_number_label, 1, 0)
       self.frame_number_value=QLabel("-")
-      self.frame_number_value.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_number_value, 1, 1)
 
 
       self.frame_time_label = QLabel("Time of frame capture: ")
-      self.frame_time_label.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_time_label, 2, 0)
       self.frame_time_value=QLabel("-")
-      self.frame_time_value.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_time_value, 2, 1)
 
       self.frame_rate_label = QLabel("Frame rate: ")
-      self.frame_rate_label.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_rate_label, 0, 0)
       self.frame_rate_value=QLabel("-")
-      self.frame_rate_value.setStyleSheet(label_style)
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
   
       self._init_mpl_widgets() 
@@ -106,7 +101,7 @@ class Frame_rate_Widget(QWidget):
         self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
         self.time_data=self.get_times()#init times of initial image
         self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
-      except (IndexError): # if no image is found then an index Error would occur
+      except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
       
 
@@ -126,7 +121,7 @@ class Frame_rate_Widget(QWidget):
          self.plot_frame_data() #automatically plot frame data when Mywidget is called
       except(IndexError): # if no image is placed yet then Errors would occur when the source is retrieved
           pass
-      self.create_SlowMo_icon() #WOoW
+      #self.create_SlowMo_icon() #WOoW
       
       
    def get_times(self):
