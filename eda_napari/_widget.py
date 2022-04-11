@@ -121,7 +121,6 @@ class Frame_rate_Widget(QWidget):
          self.plot_frame_data() #automatically plot frame data when Mywidget is called
       except(IndexError): # if no image is placed yet then Errors would occur when the source is retrieved
           pass
-      #self.create_SlowMo_icon() #WOoW
       
       
    def get_times(self):
@@ -216,8 +215,10 @@ class Frame_rate_Widget(QWidget):
       self.fig.canvas.draw()
 
    
-   def plot_frame_data(self):
+   def plot_frame_data(self):#,event = None)
       self.image_path = self._viewer.layers[0].source.path #update image_path
+      #if layer_type == "shapes":
+         #return
       self.time_data=self.get_times() #update time and frame rate data
       self.frame_rate_data=self.get_frame_rate()
       self.plot_times()
@@ -231,6 +232,7 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#init Qlabels
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
+      self.create_SlowMo_icon() #WOoW
       self.slow_mo()
       
       
@@ -266,14 +268,15 @@ class Frame_rate_Widget(QWidget):
       else:
          button_txt='Frame number -> Time'
       self.button_axis_change.setText(button_txt)
-      self.plot_frame_data()
+      self.plot_frame_rate()
 
    def create_SlowMo_icon(self):
-      
-      path =Path(__file__).parents[1].as_posix() #get path parent
-      img=Image.open(path+'/images/snails.png')
-      numpydata=np.asarray(img)#display as np array as add_image takes an array as input
-      self._viewer.add_image(numpydata, name='Slow motion')
+      triangle=np.array([[20, 60], [60, 60], [40, 90]])
+      rectangle=np.array([[20, 40],[60, 40],[60,25],[20,25]])
+      polygon=[triangle,rectangle]
+      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=5,
+                          edge_color='coral', name='Slow motion')
+
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')
       self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
       
