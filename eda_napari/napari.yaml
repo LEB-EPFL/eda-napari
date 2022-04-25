@@ -4,11 +4,11 @@ contributions:
     - id: eda-napari.frame_rate_widget
       title: open my widget
       python_name: eda_napari._widget:Frame_rate_Widget
-    - id: eda-napari.plot_line
-      title: Magicgui widget test
-      python_name: eda_napari._widget:show_plot
+    - id: eda-napari.add_time_slider
+      title: add time slider widget
+      python_name: eda_napari._widget:Add_time_slider
   widgets:
     - command: eda-napari.frame_rate_widget 
       display_name: Plot Frame rate
-    - command: eda-napari.plot_line  
-      display_name: plot line
+    - command: eda-napari.add_time_slider
+      display_name: Add time slider
