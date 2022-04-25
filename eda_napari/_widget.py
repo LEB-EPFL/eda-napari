@@ -1,11 +1,12 @@
 
+from curses.panel import bottom_panel
 from napari.utils.notifications import show_info
 import matplotlib.style as style
 import os
 style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QScrollBar
 import magicgui
 from magicgui import magic_factory
 from typing import Union
@@ -21,6 +22,8 @@ import xmltodict
 
 from PIL import Image
 from skimage.filters import threshold_otsu
+
+
 
 
 
@@ -310,22 +313,34 @@ class Frame_rate_Widget(QWidget):
          self._viewer.window.remove_dock_widget(self)
 
 
-class add_time_slider(Frame_rate_Widget):
+class Add_time_slider(QWidget):
 
    def __init__(self, napari_viewer):
+      super().__init__()
       self._viewer = napari_viewer
       self.image_path=None
       self.time_data=None
       self.channel=0
 
       self.layout=QVBoxLayout(self) #for time slider
-      self.time_slider=QSlider(Qt.Horizontal)
+      self.adjustSize()
+      #self._create_axis_label_widget()
+      #self._create_range_slider_widget()
+      #self._create_play_button_widget()
+
+      #self.layout.addWidget(self.axis_label)
+      #self.layout.addWidget(self.play_button)
+   
+      self.time_slider= QSlider(Qt.Horizontal)
       self.time_slider.setMinimum(10)
-      self.time_slider.setMaximum(30)
+      self.time_slider.setMaximum(10000)#the number of ms
       self.time_slider.setValue(20)
+      self.setMaximumHeight(50)
       self.time_slider.setTickPosition(QSlider.TicksBelow)
-      self.time_slider.setTickInterval(5)
+      self.time_slider.setTickInterval(100)
       self.layout.addWidget(self.time_slider)
+      self.Qt.DockWidgetArea=BottomDockWidgetArea
+
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
