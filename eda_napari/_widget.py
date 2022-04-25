@@ -5,7 +5,7 @@ import os
 style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas
-from qtpy.QtWidgets import QWidget, QVBoxLayout
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider
 import magicgui
 from magicgui import magic_factory
 from typing import Union
@@ -56,7 +56,7 @@ class Frame_rate_Widget(QWidget):
       self.setStyleSheet(label_style)
 
       
-
+      #main plot widget
       self.layout=QVBoxLayout(self)
       self.grid_layout = QGridLayout()
      
@@ -89,20 +89,24 @@ class Frame_rate_Widget(QWidget):
       self._init_mpl_widgets() 
       self.layout.addWidget(self.button_axis_change)
       self.layout.addLayout(self.grid_layout)
+
+      
+
+      #events
       self._viewer.layers.events.inserted.connect(self.plot_frame_data)
       self._viewer.dims.events.current_step.connect(self.plot_slider_position)
       self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
-      
-      #init channel for slow motion
+      self._viewer.layers.events.removed.connect(self.update_widget)
 
-     
-      
+
+
       try:
         self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
         self.time_data=self.get_times()#init times of initial image
         self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
+
       
 
    def _init_mpl_widgets(self):
@@ -171,8 +175,7 @@ class Frame_rate_Widget(QWidget):
       Output: Vector of frame rates in [kHz] or [Hz]
       
       The frame rate is calculate for each frame. Since the system is discrete, it must be approximated.
-       For the first and last frame only one time interval will be taken. For the others, the average of the previous 
-       and next interval approximates the frame rate at a given point."""
+       For the first frame, the frame rate is approximated with the second frame time.For the other frames, the rate is calculated with the previous frame time."""
      
       if unit_frame_r=='Hz':
          conversion_factor =1000     #convert to kHz to Hz
@@ -182,12 +185,9 @@ class Frame_rate_Widget(QWidget):
          print('unit of frame rate not reconised: please use Hz or kHz')
 
       N_frames= len(self.time_data)
-      frame_rate=[conversion_factor/abs(self.time_data[1]-self.time_data[0])]#for the first frame rate no avg can be computed
-      for i in range(1,N_frames-1):
-         avg_rate=0.5*(1/abs(self.time_data[i+1]-self.time_data[i]) + 1/abs(self.time_data[i]-self.time_data[i-1]))
-         frame_rate.append(conversion_factor*avg_rate)
-      frame_rate.append(conversion_factor/abs(self.time_data[1]-self.time_data[0])) #last frame rate
-
+      frame_rate=[conversion_factor/abs(self.time_data[1]-self.time_data[0])]#the first frame rate
+      for i in range(1,N_frames):
+         frame_rate.append(conversion_factor/abs(self.time_data[i]-self.time_data[i-1]))
       return frame_rate
    
    def plot_frame_rate(self,unit_frame_r='Hz'):
@@ -274,8 +274,8 @@ class Frame_rate_Widget(QWidget):
       triangle=np.array([[20, 60], [60, 60], [40, 90]])
       rectangle=np.array([[20, 40],[60, 40],[60,25],[20,25]])
       polygon=[triangle,rectangle]
-      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=5,
-                          edge_color='coral', name='Slow motion')
+      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
+                          edge_color='black', name='Slow motion')
 
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')
       self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
@@ -296,6 +296,36 @@ class Frame_rate_Widget(QWidget):
          else:
             self.slow_mo_array[i]=True
 
+   def update_widget(self,event):
+      """ Method updates the widget in case of layer deletion
+
+      Input: event created my deleted layer
+      Output: -
+      If slow motion is removed then the napari viewer is disconnected to the slow motion shape.
+      If all layers are removed the dock plugin is removed.
+     """
+      if not ('Slow motion ' in event.source):
+         self._viewer.dims.events.current_step.disconnect(self.update_slowMo_icon)
+      if len(event.source)==0:
+         self._viewer.window.remove_dock_widget(self)
+
+
+class add_time_slider(Frame_rate_Widget):
+
+   def __init__(self, napari_viewer):
+      self._viewer = napari_viewer
+      self.image_path=None
+      self.time_data=None
+      self.channel=0
+
+      self.layout=QVBoxLayout(self) #for time slider
+      self.time_slider=QSlider(Qt.Horizontal)
+      self.time_slider.setMinimum(10)
+      self.time_slider.setMaximum(30)
+      self.time_slider.setValue(20)
+      self.time_slider.setTickPosition(QSlider.TicksBelow)
+      self.time_slider.setTickInterval(5)
+      self.layout.addWidget(self.time_slider)
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
