@@ -6,16 +6,15 @@ import os
 style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QScrollBar
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
 import magicgui
 from magicgui import magic_factory
 from typing import Union
 import qtpy
-from PyQt5.QtCore import Qt  #WooW is this problematic that PyQt5 is used
+from PyQt5.QtCore import Qt,  QTimer  #WooW is this problematic that PyQt5 is used
 import numpy as np
 from pathlib import Path
 
-from qtpy.QtWidgets import QVBoxLayout, QPushButton, QLabel, QGridLayout
 import napari
 import tifffile
 import xmltodict
@@ -105,7 +104,7 @@ class Frame_rate_Widget(QWidget):
 
       try:
         self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
-        self.time_data=self.get_times()#init times of initial image
+        self.time_data=get_times(self)#init times of initial image
         self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
@@ -130,37 +129,7 @@ class Frame_rate_Widget(QWidget):
           pass
       
       
-   def get_times(self):
-      """Method that gets the capture time from the metadata.
-      
-      Input:-
-      Output: Vector of time metadata [ms] of images found at given image path and channel.
-      The times of each image stack from a ome.tif file is read in [ms] or [s] and then returned in [ms]. 
-      The times are taken from a given channel. The data can only be read from an ome.tif file. The Offset 
-      from time t=0 subrtracted to the times before it is returned."""
-      times=[]
-      with tifffile.TiffFile(self.image_path) as tif:
-         XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
-         dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
-         num_pages=len(tif.pages) #the number of images stacked
-         for frame in range(0,num_pages):
-            #time should be in either s or ms
-            if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==self.channel: #checks if correct channel
-               frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
-               if frame_time_unit== 's' :
-                  convert_unit_to_ms=1000
-                  times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-               elif frame_time_unit == 'ms':
-                  convert_unit_to_ms=1
-                  times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-               else:
-                  print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
-      
-      times = [x - times[0] for x in times] #remove any offset from time=0
-      return times
    
-
-
    def plot_times(self):
       self.ax.clear() #clear plot before plotting
       self.ax.set_ylabel('Time [ms]')
@@ -222,7 +191,7 @@ class Frame_rate_Widget(QWidget):
       self.image_path = self._viewer.layers[0].source.path #update image_path
       #if layer_type == "shapes":
          #return
-      self.time_data=self.get_times() #update time and frame rate data
+      self.time_data=get_times(self) #update time and frame rate data
       self.frame_rate_data=self.get_frame_rate()
       self.plot_times()
       self.plot_frame_rate()
@@ -321,25 +290,52 @@ class Add_time_slider(QWidget):
       self.image_path=None
       self.time_data=None
       self.channel=0
+      self.number_frames=None
+      self.times=[]
+      self.current_time=0
+      self.time_interval=100 #ms
+      self.interval_frames_index=[]
+      self.init_data()
 
-      self.layout=QVBoxLayout(self) #for time slider
+      self.layout=QHBoxLayout(self) #for time slider
       self.adjustSize()
-      #self._create_axis_label_widget()
-      #self._create_range_slider_widget()
-      #self._create_play_button_widget()
+      self.create_play_button()
+      self.create_time_slider()
+      #self._create_axis_label() 
+      self.setMaximumHeight(100)   
+      self.layout.addWidget(self.play_button)
+      self.layout.addWidget(self.time_slider)
+      #self.Qt.DockWidgetArea=BottomDockWidgetArea
 
-      #self.layout.addWidget(self.axis_label)
-      #self.layout.addWidget(self.play_button)
-   
+   def create_time_slider(self):
       self.time_slider= QSlider(Qt.Horizontal)
       self.time_slider.setMinimum(10)
       self.time_slider.setMaximum(10000)#the number of ms
       self.time_slider.setValue(20)
-      self.setMaximumHeight(50)
       self.time_slider.setTickPosition(QSlider.TicksBelow)
       self.time_slider.setTickInterval(100)
-      self.layout.addWidget(self.time_slider)
-      self.Qt.DockWidgetArea=BottomDockWidgetArea
+   def create_play_button(self):
+   
+      self.play_button_txt='Play >>'
+      self.play_button=QPushButton(self.play_button_txt)
+      #self.play_button.clicked.connect(self.play)
+   def init_data(self):
+      try:
+        self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
+        self.times=get_times(self)#init times of initial image
+        self.number_frames=len(self.times)
+        
+      except (IndexError,AttributeError): # if no image is found then an index Error would occur
+          pass
+   def set_frames_index(self):
+      #for i in self.times:
+         #to continue....
+      pass
+   def play(self):
+      for i in range(0,self.number_frames):
+         QTimer.singleShot(self.show_times[i], self.play_step)
+
+   #def play_step(self):
 
 
 from magicgui import magic_factory
@@ -357,4 +353,32 @@ def show_plot(
     return (image > threshold).astype(int)
 
 
-
+   
+def get_times(widget):
+   """Method that gets the capture time from the metadata.
+   
+   Input:-
+   Output: Vector of time metadata [ms] of images found at given image path and channel.
+   The times of each image stack from a ome.tif file is read in [ms] or [s] and then returned in [ms]. 
+   The times are taken from a given channel. The data can only be read from an ome.tif file. The Offset 
+   from time t=0 subrtracted to the times before it is returned."""
+   times=[]
+   with tifffile.TiffFile(widget.image_path) as tif:
+      XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
+      dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+      num_pages=len(tif.pages) #the number of images stacked
+      for frame in range(0,num_pages):
+         #time should be in either s or ms
+         if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==widget.channel: #checks if correct channel
+            frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
+            if frame_time_unit== 's' :
+               convert_unit_to_ms=1000
+               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+            elif frame_time_unit == 'ms':
+               convert_unit_to_ms=1
+               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+            else:
+               print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
+   
+   times = [x - times[0] for x in times] #remove any offset from time=0
+   return times
