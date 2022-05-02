@@ -14,10 +14,12 @@ import qtpy
 from PyQt5.QtCore import Qt,  QTimer  #WooW is this problematic that PyQt5 is used
 import numpy as np
 from pathlib import Path
+import math
 
 import napari
 import tifffile
 import xmltodict
+
 
 from PIL import Image
 from skimage.filters import threshold_otsu
@@ -293,50 +295,103 @@ class Add_time_slider(QWidget):
       self.number_frames=None
       self.times=[]
       self.current_time=0
+      self.show_time=10 #ms
       self.time_interval=100 #ms
       self.interval_frames_index=[]
+      self.new_index=0
+      self.current_time=0
       self.init_data()
+
+      self.timer=QTimer(self)
+      self.timer.timeout.connect(self.play_step)
 
       self.layout=QHBoxLayout(self) #for time slider
       self.adjustSize()
       self.create_play_button()
       self.create_time_slider()
-      #self._create_axis_label() 
+      self.create_axis_label() 
       self.setMaximumHeight(100)   
       self.layout.addWidget(self.play_button)
       self.layout.addWidget(self.time_slider)
+      self.layout.addWidget(self.axis_label)
+      self._viewer.dims.events.current_step.connect(self.update_slider)
       #self.Qt.DockWidgetArea=BottomDockWidgetArea
+
 
    def create_time_slider(self):
       self.time_slider= QSlider(Qt.Horizontal)
-      self.time_slider.setMinimum(10)
-      self.time_slider.setMaximum(10000)#the number of ms
-      self.time_slider.setValue(20)
-      self.time_slider.setTickPosition(QSlider.TicksBelow)
-      self.time_slider.setTickInterval(100)
+      self.time_slider.setMinimum(0)
+      self.time_slider.setMaximum(self.times[-1])#the number of ms
+      self.time_slider.setValue(0)
+      self.time_slider.setTickInterval(self.time_interval)
+      self.time_slider.setTickPosition(QSlider.TicksBothSides)
+
+
    def create_play_button(self):
-   
       self.play_button_txt='Play >>'
       self.play_button=QPushButton(self.play_button_txt)
-      #self.play_button.clicked.connect(self.play)
+      self.play_button.clicked.connect(self.play)
+
+   def create_axis_label(self):
+      self.axis_label=QLabel(str(self.time_slider.value()) + ' | '+str(self.times[-1])+' [ms]')
    def init_data(self):
       try:
-        self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
-        self.times=get_times(self)#init times of initial image
-        self.number_frames=len(self.times)
-        
+         self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
+         self.times=get_times(self)#init times of initial image
+         self.number_frames=len(self.times)
+         self.current_time=self.times[self._viewer.dims.current_step[0]]
+         self.init_time_interval()
+         self.set_frames_index()
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
+
+   
    def set_frames_index(self):
-      #for i in self.times:
-         #to continue....
-      pass
+      frame_index=0
+      t=0
+      self.interval_frames_index=[0]
+      while frame_index < self.number_frames-1:
+         t+=self.time_interval
+         if self.times[frame_index+1] < t:
+            frame_index+=1
+         self.interval_frames_index.append(frame_index)
+
+   
+   def init_time_interval(self):
+      diff=[]
+      for i in range(1,self.number_frames):
+         diff.append(self.times[i]-self.times[i-1])
+      min_diff=min(diff)
+      self.time_interval = math.floor(min_diff)/4 #this makes sure a relevant discretisation of time is made for the animation
+   
+
+   def play_step(self):
+      if self._viewer.dims.current_step[0]== self.number_frames-1:
+         self._viewer.dims.set_current_step(0, 0)#restart at frame 0
+         self.new_index=0
+      else:
+         self.new_index+=1 #update index
+         print(self.interval_frames_index[self.new_index]) #problem here
+         if self.interval_frames_index[self.new_index] != self._viewer.dims.current_step[0]:
+            self._viewer.dims.set_current_step(0, self.interval_frames_index[self.new_index])
+  
    def play(self):
-      for i in range(0,self.number_frames):
-         QTimer.singleShot(self.show_times[i], self.play_step)
-
-   #def play_step(self):
-
+      if self.play_button_txt =='Play >>': #play
+         self.new_index=0 #init
+         self._viewer.dims.set_current_step(0, 0)#start playing from the beginning
+         self.timer.start(self.show_time)
+         self.play_button_txt = 'Stop'
+         self.play_button.setText(self.play_button_txt)
+       
+      else: #stop  
+         self.timer.stop()
+         self.play_button_txt = 'Play >>'
+         self.play_button.setText(self.play_button_txt)
+       
+   def update_slider(self):
+      self.time_slider.setValue(self.times[self._viewer.dims.current_step[0]])
+      self.axis_label.setText(str(self.time_slider.value()) + ' | '+str(self.times[-1])+ ' [ms]')
+        
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
