@@ -298,7 +298,6 @@ class Add_time_slider(QWidget):
       self.show_time=10 #ms
       self.time_interval=100 #ms
       self.interval_frames_index=[]
-      self.new_index=0
       self.current_time=0
       self.init_data()
 
@@ -313,18 +312,21 @@ class Add_time_slider(QWidget):
       self.setMaximumHeight(100)   
       self.layout.addWidget(self.play_button)
       self.layout.addWidget(self.time_slider)
-      self.layout.addWidget(self.axis_label)
-      self._viewer.dims.events.current_step.connect(self.update_slider)
+      self.layout.addWidget(self.axis_label1)
+      self.layout.addWidget(self.axis_label2)
+      #self._viewer.dims.events.current_step.connect(self.update_slider_from_dims)#link window slider to time slider
+      self.time_slider.valueChanged.connect(self.update_slider_from_slider)
       #self.Qt.DockWidgetArea=BottomDockWidgetArea
 
 
    def create_time_slider(self):
-      self.time_slider= QSlider(Qt.Horizontal)
+      self.time_slider= QScrollBar(Qt.Horizontal)
       self.time_slider.setMinimum(0)
-      self.time_slider.setMaximum(self.times[-1])#the number of ms
+      self.time_slider.setMaximum(len(self.interval_frames_index))
       self.time_slider.setValue(0)
-      self.time_slider.setTickInterval(self.time_interval)
-      self.time_slider.setTickPosition(QSlider.TicksBothSides)
+      self.time_slider.setSingleStep(1)
+      self.time_slider.minimumWidth=500
+    
 
 
    def create_play_button(self):
@@ -333,7 +335,10 @@ class Add_time_slider(QWidget):
       self.play_button.clicked.connect(self.play)
 
    def create_axis_label(self):
-      self.axis_label=QLabel(str(self.time_slider.value()) + ' | '+str(self.times[-1])+' [ms]')
+      self.axis_label1=QLabel(str(self.time_slider.value()))
+      self.axis_label1.minimumWidth=140
+      self.axis_label2=QLabel(' | '+str(self.times[-1])+' [ms]')
+
    def init_data(self):
       try:
          self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
@@ -368,16 +373,14 @@ class Add_time_slider(QWidget):
    def play_step(self):
       if self._viewer.dims.current_step[0]== self.number_frames-1:
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
-         self.new_index=0
+         self.time_slider.setValue(0)
       else:
-         self.new_index+=1 #update index
-         print(self.interval_frames_index[self.new_index]) #problem here
-         if self.interval_frames_index[self.new_index] != self._viewer.dims.current_step[0]:
-            self._viewer.dims.set_current_step(0, self.interval_frames_index[self.new_index])
+         self.time_slider.setValue(self.time_slider.value()+1)
+         if self.interval_frames_index[self.time_slider.value()] != self._viewer.dims.current_step[0]: #update viewer
+            self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_slider.value()])
   
    def play(self):
       if self.play_button_txt =='Play >>': #play
-         self.new_index=0 #init
          self._viewer.dims.set_current_step(0, 0)#start playing from the beginning
          self.timer.start(self.show_time)
          self.play_button_txt = 'Stop'
@@ -388,10 +391,14 @@ class Add_time_slider(QWidget):
          self.play_button_txt = 'Play >>'
          self.play_button.setText(self.play_button_txt)
        
-   def update_slider(self):
+   def update_slider_from_dims(self):
       self.time_slider.setValue(self.times[self._viewer.dims.current_step[0]])
-      self.axis_label.setText(str(self.time_slider.value()) + ' | '+str(self.times[-1])+ ' [ms]')
-        
+      self.axis_label1.setText(str(self.time_slider.value()*self.time_interval))
+
+   def update_slider_from_slider(self):
+      self.axis_label1.setText(str(self.time_slider.value()*self.time_interval)) #add Qlabel to not change last part since const
+      if self.interval_frames_index[self.time_slider.value()] != self._viewer.dims.current_step[0]: #update viewer
+         self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_slider.value()])
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
