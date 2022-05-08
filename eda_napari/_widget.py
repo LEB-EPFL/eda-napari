@@ -284,7 +284,7 @@ class Frame_rate_Widget(QWidget):
          self._viewer.window.remove_dock_widget(self)
 
 
-class Add_time_slider(QWidget):
+class Add_time_scroller(QWidget):
 
    def __init__(self, napari_viewer):
       super().__init__()
@@ -305,27 +305,30 @@ class Add_time_slider(QWidget):
       self.timer.timeout.connect(self.play_step)
 
       self.layout=QHBoxLayout(self) #for time slider
-      self.adjustSize()
+      #self.adjustSize()
+      self.setMinimumWidth(500)
       self.create_play_button()
-      self.create_time_slider()
+      self.create_time_scroller()
       self.create_axis_label() 
       self.setMaximumHeight(100)   
       self.layout.addWidget(self.play_button)
-      self.layout.addWidget(self.time_slider)
+      self.layout.addWidget(self.time_scroller)
       self.layout.addWidget(self.axis_label1)
       self.layout.addWidget(self.axis_label2)
-      #self._viewer.dims.events.current_step.connect(self.update_slider_from_dims)#link window slider to time slider
-      self.time_slider.valueChanged.connect(self.update_slider_from_slider)
+      self._viewer.dims.events.current_step.connect(self.update_slider_from_dims)#link window slider to time slider
+      self.time_scroller.valueChanged.connect(self.update_slider_from_slider) # WOooW interactions to be checked
       #self.Qt.DockWidgetArea=BottomDockWidgetArea
+      
 
 
-   def create_time_slider(self):
-      self.time_slider= QScrollBar(Qt.Horizontal)
-      self.time_slider.setMinimum(0)
-      self.time_slider.setMaximum(len(self.interval_frames_index))
-      self.time_slider.setValue(0)
-      self.time_slider.setSingleStep(1)
-      self.time_slider.minimumWidth=500
+   def create_time_scroller(self):
+      self.time_scroller= QScrollBar(Qt.Horizontal)
+      self.time_scroller.setMinimum(0)
+      self.time_scroller.setMaximum(len(self.interval_frames_index)-1) #WoW length correct?
+      self.time_scroller.setValue(0)
+      self.time_scroller.setSingleStep(1)
+      self.time_scroller.setMinimumWidth(150)
+
     
 
 
@@ -335,9 +338,16 @@ class Add_time_slider(QWidget):
       self.play_button.clicked.connect(self.play)
 
    def create_axis_label(self):
-      self.axis_label1=QLabel(str(self.time_slider.value()))
-      self.axis_label1.minimumWidth=140
-      self.axis_label2=QLabel(' | '+str(self.times[-1])+' [ms]')
+      self.axis_label1=QLabel(str(self.times[-1]))
+      width1 = self.axis_label1.fontMetrics().boundingRect(self.axis_label1.text()).width() #max width of text
+      self.axis_label1.setText(str(self.time_scroller.value()))
+      self.axis_label1.setFixedWidth(1.4*width1)
+
+      self.axis_label2=QLabel('| '+str(self.times[-1])+' [ms]')
+      width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
+      self.axis_label2.setFixedWidth(1.1*width2)
+      
+      
 
    def init_data(self):
       try:
@@ -373,11 +383,11 @@ class Add_time_slider(QWidget):
    def play_step(self):
       if self._viewer.dims.current_step[0]== self.number_frames-1:
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
-         self.time_slider.setValue(0)
+         self.time_scroller.setValue(0)
       else:
-         self.time_slider.setValue(self.time_slider.value()+1)
-         if self.interval_frames_index[self.time_slider.value()] != self._viewer.dims.current_step[0]: #update viewer
-            self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_slider.value()])
+         self.time_scroller.setValue(self.time_scroller.value()+1)
+         if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer
+            self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
   
    def play(self):
       if self.play_button_txt =='Play >>': #play
@@ -385,6 +395,7 @@ class Add_time_slider(QWidget):
          self.timer.start(self.show_time)
          self.play_button_txt = 'Stop'
          self.play_button.setText(self.play_button_txt)
+         self.play_button.setMaximumWidth(80)
        
       else: #stop  
          self.timer.stop()
@@ -392,13 +403,15 @@ class Add_time_slider(QWidget):
          self.play_button.setText(self.play_button_txt)
        
    def update_slider_from_dims(self):
-      self.time_slider.setValue(self.times[self._viewer.dims.current_step[0]])
-      self.axis_label1.setText(str(self.time_slider.value()*self.time_interval))
+      idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
+      self.time_scroller.setValue(idx)
+      
+      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
 
    def update_slider_from_slider(self):
-      self.axis_label1.setText(str(self.time_slider.value()*self.time_interval)) #add Qlabel to not change last part since const
-      if self.interval_frames_index[self.time_slider.value()] != self._viewer.dims.current_step[0]: #update viewer
-         self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_slider.value()])
+      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+      if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer #one
+         self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
