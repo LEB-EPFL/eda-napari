@@ -270,6 +270,7 @@ class Frame_rate_Widget(QWidget):
          else:
             self.slow_mo_array[i]=True
 
+
    def update_widget(self,event):
       """ Method updates the widget in case of layer deletion
 
@@ -284,8 +285,9 @@ class Frame_rate_Widget(QWidget):
          self._viewer.window.remove_dock_widget(self)
 
 
-class Add_time_scroller(QWidget):
 
+class Add_time_scroller(QWidget):
+   
    def __init__(self, napari_viewer):
       super().__init__()
       self._viewer = napari_viewer
@@ -294,69 +296,104 @@ class Add_time_scroller(QWidget):
       self.channel=0
       self.number_frames=None
       self.times=[]
-      self.current_time=0
       self.show_time=10 #ms
       self.time_interval=100 #ms
       self.interval_frames_index=[]
-      self.current_time=0
-      self.init_data()
-
+      self.data_is_avable=False
+   
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
 
-      self.layout=QHBoxLayout(self) #for time slider
-      #self.adjustSize()
+      self.layout=QHBoxLayout(self) #for time scroller
       self.setMinimumWidth(500)
+      self.create_slow_down()
+      
       self.create_play_button()
+     
+      self.create_speed_up()
+      
       self.create_time_scroller()
       self.create_axis_label() 
-      self.setMaximumHeight(100)   
+      self.setMaximumHeight(100)
+      self.layout.addWidget(self.slow_down_button)   
       self.layout.addWidget(self.play_button)
+      self.layout.addWidget(self.speed_up_button)
       self.layout.addWidget(self.time_scroller)
       self.layout.addWidget(self.axis_label1)
       self.layout.addWidget(self.axis_label2)
-      self._viewer.dims.events.current_step.connect(self.update_slider_from_dims)#link window slider to time slider
-      self.time_scroller.valueChanged.connect(self.update_slider_from_slider) # WOooW interactions to be checked
-      #self.Qt.DockWidgetArea=BottomDockWidgetArea
+
+      self.init_data()
+      #events
+      self._viewer.layers.events.inserted.connect(self.init_data) #init data when layer is inserted
+      self.slow_down_button.clicked.connect(self.slow_animation)
+      self.play_button.clicked.connect(self.play)
+      self.speed_up_button.clicked.connect(self.speed_animation)
+      self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims)#link window srolle to time srolle
+      self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #link  
+
+      #self.parentWidget().parentWidget().addDockWidget(Qt.BottomDockWidgetArea,self.parentWidget()) # init position in QDockWidget (parent) to bottom in QWindow
+
+   def create_slow_down(self):
+      self.slow_down_txt='x 0.5'
+      self.slow_down_button=QPushButton(self.slow_down_txt)
+      self.slow_down_button.setMaximumWidth(50)
+
+   def slow_animation(self):
+      self.show_time = self.show_time*2
+      if self.play_button_txt=='Stop': #if program is playing
+         self.timer.stop()
+         self.timer.start(self.show_time) #set new show_time
+     
+   def create_speed_up(self):
+      self.speed_up_txt='x 2'
+      self.speed_up_button=QPushButton(self.speed_up_txt)
+      self.speed_up_button.setMaximumWidth(50)
+
+   def speed_animation(self):
+      #if self.show_time >=5:
+      self.show_time = self.show_time*0.5
+      if self.play_button_txt=='Stop':
+         self.timer.stop()
+         self.timer.start(self.show_time)
+      #else:
+        # print('Too fast') #under a certain showtime problems occur
       
-
-
    def create_time_scroller(self):
       self.time_scroller= QScrollBar(Qt.Horizontal)
       self.time_scroller.setMinimum(0)
-      self.time_scroller.setMaximum(len(self.interval_frames_index)-1) #WoW length correct?
-      self.time_scroller.setValue(0)
       self.time_scroller.setSingleStep(1)
       self.time_scroller.setMinimumWidth(150)
-
-    
-
 
    def create_play_button(self):
       self.play_button_txt='Play >>'
       self.play_button=QPushButton(self.play_button_txt)
-      self.play_button.clicked.connect(self.play)
+      self.play_button.setMaximumWidth(60)
 
    def create_axis_label(self):
-      self.axis_label1=QLabel(str(self.times[-1]))
-      width1 = self.axis_label1.fontMetrics().boundingRect(self.axis_label1.text()).width() #max width of text
-      self.axis_label1.setText(str(self.time_scroller.value()))
-      self.axis_label1.setFixedWidth(1.4*width1)
-
-      self.axis_label2=QLabel('| '+str(self.times[-1])+' [ms]')
-      width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
-      self.axis_label2.setFixedWidth(1.1*width2)
-      
-      
+      self.axis_label1=QLabel('End time')
+      self.axis_label2=QLabel('Current time')
 
    def init_data(self):
       try:
          self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
          self.times=get_times(self)#init times of initial image
          self.number_frames=len(self.times)
-         self.current_time=self.times[self._viewer.dims.current_step[0]]
          self.init_time_interval()
          self.set_frames_index()
+         #time scroller
+         self.time_scroller.setMaximum(len(self.interval_frames_index)-1)
+         idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
+         self.time_scroller.setValue(idx) #set init position of scroller
+         #init Label1
+         width1 = self.axis_label1.fontMetrics().boundingRect(self.axis_label1.text()).width() #max width of text
+         self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+         self.axis_label1.setFixedWidth(1.3*width1)
+         #init label2
+         self.axis_label2.setText('| '+str(self.times[-1])+' [ms]')
+         width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
+         self.axis_label2.setFixedWidth(1.1*width2)
+         self.data_is_avable=True
+
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
 
@@ -377,7 +414,7 @@ class Add_time_scroller(QWidget):
       for i in range(1,self.number_frames):
          diff.append(self.times[i]-self.times[i-1])
       min_diff=min(diff)
-      self.time_interval = math.floor(min_diff)/4 #this makes sure a relevant discretisation of time is made for the animation
+      self.time_interval = math.floor(min_diff/4)#this makes sure a relevant discretisation of time is made for the animation
    
 
    def play_step(self):
@@ -390,8 +427,7 @@ class Add_time_scroller(QWidget):
             self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
   
    def play(self):
-      if self.play_button_txt =='Play >>': #play
-         self._viewer.dims.set_current_step(0, 0)#start playing from the beginning
+      if self.play_button_txt =='Play >>': 
          self.timer.start(self.show_time)
          self.play_button_txt = 'Stop'
          self.play_button.setText(self.play_button_txt)
@@ -402,16 +438,21 @@ class Add_time_scroller(QWidget):
          self.play_button_txt = 'Play >>'
          self.play_button.setText(self.play_button_txt)
        
-   def update_slider_from_dims(self):
+   def update_scroller_from_dims(self):
       idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
+      self.time_scroller.valueChanged.disconnect(self.update_scroller_from_scroller)#avoid double calling
       self.time_scroller.setValue(idx)
+      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+      self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #reconnect
+
+   def update_scroller_from_scroller(self):
       
       self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
-
-   def update_slider_from_slider(self):
-      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
       if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer #one
+         self._viewer.dims.events.current_step.disconnect(self.update_scroller_from_dims) #avoid double calling
          self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
+         self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims) #reconnect
+       
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
