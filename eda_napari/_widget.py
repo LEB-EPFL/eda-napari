@@ -11,7 +11,7 @@ import magicgui
 from magicgui import magic_factory
 from typing import Union
 import qtpy
-from PyQt5.QtCore import Qt,  QTimer  #WooW is this problematic that PyQt5 is used
+from PyQt5.QtCore import Qt,  QTimer  #WooW is this problematic that PyQt5 is used 
 import numpy as np
 from pathlib import Path
 import math
@@ -287,34 +287,40 @@ class Frame_rate_Widget(QWidget):
 
 
 class Add_time_scroller(QWidget):
+   """Add_time_scroller class is a widget that creates a time scroll bar.  The scroll bar allows to animate stacks of 
+   images linearly with time. Similary to the napari scroll bar, it has a play, stop, next and previous button."""
    
    def __init__(self, napari_viewer):
+      """Constructor of the Add_time_scroller.
+      
+      This constructor initialises the button widgets and scroll bar widget in a QHBoxlayout. It also initialise the time of the frames
+      from the image data available. Some signals are also defined to allow interaction and automatic updates between the current layer and
+      the Add_time_scroller widget. A Qtimer is defined to controll the animation.
+      """   
       super().__init__()
       self._viewer = napari_viewer
-      self.image_path=None
+      self.image_path=None #folder path of the image data
       self.time_data=None
       self.channel=0
       self.number_frames=None
-      self.times=[]
-      self.show_time=10 #ms
-      self.time_interval=100 #ms
-      self.interval_frames_index=[]
-      self.data_is_avable=False
+      self.show_time=10 #animation default display time ms
+      self.time_interval=None # time of the discretised time interval [ms]
+      self.interval_frames_index=[]#discretised time interval filled with an index the the different frames.
+      self.data_is_available=False
    
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
 
-      self.layout=QHBoxLayout(self) #for time scroller
+      self.layout=QHBoxLayout(self) 
       self.setMinimumWidth(500)
+      self.setMaximumHeight(100)
+
       self.create_slow_down()
-      
       self.create_play_button()
-     
       self.create_speed_up()
-      
       self.create_time_scroller()
       self.create_axis_label() 
-      self.setMaximumHeight(100)
+     
       self.layout.addWidget(self.slow_down_button)   
       self.layout.addWidget(self.play_button)
       self.layout.addWidget(self.speed_up_button)
@@ -374,10 +380,13 @@ class Add_time_scroller(QWidget):
       self.axis_label2=QLabel('Current time')
 
    def init_data(self):
+       
+      """This method initialises all the additonal data after an image stack is available and readable.
+      """   
       try:
-         self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
-         self.times=get_times(self)#init times of initial image
-         self.number_frames=len(self.times)
+         self.image_path = self._viewer.layers[0].source.path
+         self.time_data=get_times(self)#init times of image stack
+         self.number_frames=len(self.time_data)
          self.init_time_interval()
          self.set_frames_index()
          #time scroller
@@ -389,7 +398,7 @@ class Add_time_scroller(QWidget):
          self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
          self.axis_label1.setFixedWidth(1.3*width1)
          #init label2
-         self.axis_label2.setText('| '+str(self.times[-1])+' [ms]')
+         self.axis_label2.setText('| '+str(self.time_data[-1])+' [ms]')
          width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
          self.axis_label2.setFixedWidth(1.1*width2)
          self.data_is_avable=True
@@ -397,27 +406,35 @@ class Add_time_scroller(QWidget):
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
 
+   def init_time_interval(self):
+      """This method sets the time discretisation interval of the system, for the animation and scroll bar.
+      self.time_interval is initiliased as the 1/4 of the minimum time between to images frames. This creates a revelant discretisation of time with
+      respect to the frame rates.
+      """ 
+      diff=[]
+      for i in range(1,self.number_frames):
+         diff.append(self.time_data[i]-self.time_data[i-1])
+      min_diff=min(diff)
+      self.time_interval = math.floor(min_diff/4)#this makes sure a relevant discretisation of time is made for the animation
+   
    
    def set_frames_index(self):
+      """This method sets self.interval_frames_index with image frames numbers. Each index corresponds the appropiate image frame
+      that should be displayed in the discretized time.
+      """ 
       frame_index=0
       t=0
       self.interval_frames_index=[0]
       while frame_index < self.number_frames-1:
          t+=self.time_interval
-         if self.times[frame_index+1] < t:
+         if self.time_data[frame_index+1] < t:
             frame_index+=1
          self.interval_frames_index.append(frame_index)
 
-   
-   def init_time_interval(self):
-      diff=[]
-      for i in range(1,self.number_frames):
-         diff.append(self.times[i]-self.times[i-1])
-      min_diff=min(diff)
-      self.time_interval = math.floor(min_diff/4)#this makes sure a relevant discretisation of time is made for the animation
-   
 
    def play_step(self):
+      """This method advances the time of 1 time interval and takes car of updating the current displayed frame if necessary.
+      """ 
       if self._viewer.dims.current_step[0]== self.number_frames-1:
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
          self.time_scroller.setValue(0)
@@ -426,7 +443,7 @@ class Add_time_scroller(QWidget):
          if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer
             self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
   
-   def play(self):
+   def play(self): # play and stop method
       if self.play_button_txt =='Play >>': 
          self.timer.start(self.show_time)
          self.play_button_txt = 'Stop'
