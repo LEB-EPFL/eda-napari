@@ -11,7 +11,7 @@ import magicgui
 from magicgui import magic_factory
 from typing import Union
 import qtpy
-from PyQt5.QtCore import Qt,  QTimer  #WooW is this problematic that PyQt5 is used 
+from qtpy.QtCore import Qt, QTimer
 import numpy as np
 from pathlib import Path
 import math
@@ -191,8 +191,6 @@ class Frame_rate_Widget(QWidget):
    
    def plot_frame_data(self):#,event = None)
       self.image_path = self._viewer.layers[0].source.path #update image_path
-      #if layer_type == "shapes":
-         #return
       self.time_data=get_times(self) #update time and frame rate data
       self.frame_rate_data=self.get_frame_rate()
       self.plot_times()
@@ -303,10 +301,12 @@ class Add_time_scroller(QWidget):
       self.time_data=None
       self.channel=0
       self.number_frames=None
-      self.show_time=10 #animation default display time ms
+      self.show_time=50#animation default display time ms
       self.time_interval=None # time of the discretised time interval [ms]
       self.interval_frames_index=[]#discretised time interval filled with an index the the different frames.
       self.data_is_available=False
+      self.step=1
+      self.critical_ms=30
    
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
@@ -315,12 +315,14 @@ class Add_time_scroller(QWidget):
       self.setMinimumWidth(500)
       self.setMaximumHeight(100)
 
+      self.create_bottom_dock_button()
       self.create_slow_down()
       self.create_play_button()
       self.create_speed_up()
       self.create_time_scroller()
       self.create_axis_label() 
-     
+
+      self.layout.addWidget(self.bottom_dock_button)  
       self.layout.addWidget(self.slow_down_button)   
       self.layout.addWidget(self.play_button)
       self.layout.addWidget(self.speed_up_button)
@@ -329,40 +331,49 @@ class Add_time_scroller(QWidget):
       self.layout.addWidget(self.axis_label2)
 
       self.init_data()
-      #events
       self._viewer.layers.events.inserted.connect(self.init_data) #init data when layer is inserted
-      self.slow_down_button.clicked.connect(self.slow_animation)
-      self.play_button.clicked.connect(self.play)
-      self.speed_up_button.clicked.connect(self.speed_animation)
-      self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims)#link window srolle to time srolle
-      self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #link  
+      #events
+      #self._viewer.layers.events.inserted.connect(self.init_data) #init data when layer is inserted
+      #self.bottom_dock_button.clicked.connect(self.move_dock_to_bottom)
+      #self.slow_down_button.clicked.connect(self.slow_animation)
+      #self.play_button.clicked.connect(self.play)
+      #self.speed_up_button.clicked.connect(self.speed_animation)
+      #self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims)#link window srolle to time srolle
+      #self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #link  
 
-      #self.parentWidget().parentWidget().addDockWidget(Qt.BottomDockWidgetArea,self.parentWidget()) # init position in QDockWidget (parent) to bottom in QWindow
+   def create_bottom_dock_button(self):
+      self.bottom_dock_button=QPushButton('↓↓')
+      self.bottom_dock_button.setMaximumWidth(35)
+
+   def move_dock_to_bottom(self):
+     self.parentWidget().parentWidget().addDockWidget(Qt.BottomDockWidgetArea,self.parentWidget()) # init position in QDockWidget (parent) to bottom in QWindow
+     self.bottom_dock_button.deleteLater()
+
 
    def create_slow_down(self):
-      self.slow_down_txt='x 0.5'
-      self.slow_down_button=QPushButton(self.slow_down_txt)
+      self.slow_down_button=QPushButton('x 0.5')
       self.slow_down_button.setMaximumWidth(50)
 
    def slow_animation(self):
-      self.show_time = self.show_time*2
-      if self.play_button_txt=='Stop': #if program is playing
-         self.timer.stop()
-         self.timer.start(self.show_time) #set new show_time
-     
+      if self.step == 1:
+         self.show_time = self.show_time*2
+         if self.play_button_txt=='Stop': #if program is playing
+            self.timer.stop()
+            self.timer.start(self.show_time) #set new show_time
+      else:
+         self.step=self.step/2
    def create_speed_up(self):
-      self.speed_up_txt='x 2'
-      self.speed_up_button=QPushButton(self.speed_up_txt)
+      self.speed_up_button=QPushButton('x 2')
       self.speed_up_button.setMaximumWidth(50)
 
    def speed_animation(self):
-      #if self.show_time >=5:
-      self.show_time = self.show_time*0.5
-      if self.play_button_txt=='Stop':
-         self.timer.stop()
-         self.timer.start(self.show_time)
-      #else:
-        # print('Too fast') #under a certain showtime problems occur
+      if self.show_time >=self.critical_ms:
+         self.show_time = self.show_time*0.5
+         if self.play_button_txt=='Stop':
+            self.timer.stop()
+            self.timer.start(self.show_time)
+      else:
+         self.step=self.step*2
       
    def create_time_scroller(self):
       self.time_scroller= QScrollBar(Qt.Horizontal)
@@ -378,30 +389,41 @@ class Add_time_scroller(QWidget):
    def create_axis_label(self):
       self.axis_label1=QLabel('End time')
       self.axis_label2=QLabel('Current time')
+      #self.axis_label1.setMargin(0)
 
    def init_data(self):
+      
        
       """This method initialises all the additonal data after an image stack is available and readable.
-      """   
+      """ 
       try:
-         self.image_path = self._viewer.layers[0].source.path
-         self.time_data=get_times(self)#init times of image stack
-         self.number_frames=len(self.time_data)
-         self.init_time_interval()
-         self.set_frames_index()
-         #time scroller
-         self.time_scroller.setMaximum(len(self.interval_frames_index)-1)
-         idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
-         self.time_scroller.setValue(idx) #set init position of scroller
-         #init Label1
-         width1 = self.axis_label1.fontMetrics().boundingRect(self.axis_label1.text()).width() #max width of text
-         self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
-         self.axis_label1.setFixedWidth(1.3*width1)
-         #init label2
-         self.axis_label2.setText('| '+str(self.time_data[-1])+' [ms]')
-         width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
-         self.axis_label2.setFixedWidth(1.1*width2)
-         self.data_is_avable=True
+         if self.image_path!=self._viewer.layers[0].source.path: #Only inits data if the layer is new
+               self.image_path = self._viewer.layers[0].source.path
+               self.time_data=get_times(self)#init times of image stack
+               self.number_frames=len(self.time_data)
+               self.init_time_interval()
+               self.set_frames_index()
+               #time scroller
+               self.time_scroller.setMaximum(len(self.interval_frames_index)-1)
+               idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
+               self.time_scroller.setValue(idx) #set init position of scroller
+               #init label2
+               self.axis_label2.setText('| '+str(self.time_data[-1])+' [ms]')
+               width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
+               self.axis_label2.setFixedWidth(1.1*width2)
+               #init Label1
+               self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+               self.axis_label1.setFixedWidth(0.7*width2)
+
+               #events
+               self.bottom_dock_button.clicked.connect(self.move_dock_to_bottom)
+               self.slow_down_button.clicked.connect(self.slow_animation)
+               self.play_button.clicked.connect(self.play)
+               self.speed_up_button.clicked.connect(self.speed_animation)
+               self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims)#link window srolle to time srolle
+               self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #link  
+               self._viewer.layers.events.removed.connect(self.update_widget)
+               self.data_is_avable=True
 
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           pass
@@ -439,7 +461,7 @@ class Add_time_scroller(QWidget):
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
          self.time_scroller.setValue(0)
       else:
-         self.time_scroller.setValue(self.time_scroller.value()+1)
+         self.time_scroller.setValue(self.time_scroller.value()+self.step)
          if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer
             self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
   
@@ -459,17 +481,28 @@ class Add_time_scroller(QWidget):
       idx=self.interval_frames_index.index(self._viewer.dims.current_step[0])
       self.time_scroller.valueChanged.disconnect(self.update_scroller_from_scroller)#avoid double calling
       self.time_scroller.setValue(idx)
-      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+      if self._viewer.dims.current_step[0]==self.number_frames-1:
+         self.axis_label1.setText(str(self.time_data[-1]))
+      else:
+         self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
       self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #reconnect
 
    def update_scroller_from_scroller(self):
-      
-      self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
       if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer #one
          self._viewer.dims.events.current_step.disconnect(self.update_scroller_from_dims) #avoid double calling
          self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
          self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims) #reconnect
-       
+
+      if self._viewer.dims.current_step[0]==self.number_frames-1:
+         self.axis_label1.setText(str(self.time_data[-1]))
+      else:
+         self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+
+
+   def update_widget(self,event):
+      if len(event.source)==0:
+         self._viewer.window.remove_dock_widget(self)
+
 
 from magicgui import magic_factory
 # decorate your function with the @magicgui decorator
@@ -485,7 +518,7 @@ def show_plot(
     """
     return (image > threshold).astype(int)
 
-
+  
    
 def get_times(widget):
    """Method that gets the capture time from the metadata.
