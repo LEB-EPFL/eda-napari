@@ -5,8 +5,9 @@ import matplotlib.style as style
 import os
 style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 import matplotlib.pyplot as plt
+#from mpl_interactions import ioff, panhandler, zoom_factory
 from matplotlib.backends.backend_qt5agg import FigureCanvas
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
 import magicgui
 from magicgui import magic_factory
 from typing import Union
@@ -93,24 +94,20 @@ class Frame_rate_Widget(QWidget):
       self._init_mpl_widgets() 
       self.layout.addWidget(self.button_axis_change)
       self.layout.addLayout(self.grid_layout)
-
-      
+      #QTimer, this Q timer will be used to load data after a certain wait time
+      self.Twait=2500
+      self.timer=QTimer()
+      self.timer.setInterval(self.Twait)
+      self.timer.setSingleShot(True)
+      self.timer.timeout.connect(self.init_data)
 
       #events
-      self._viewer.layers.events.inserted.connect(self.plot_frame_data)
-      self._viewer.dims.events.current_step.connect(self.plot_slider_position)
-      self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
+      self._viewer.layers.events.inserted.connect(self.init_after_timer)
+      #self._viewer.dims.events.current_step.connect(self.plot_slider_position)
+      #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
       self._viewer.layers.events.removed.connect(self.update_widget)
 
-
-
-      try:
-        self.image_path = self._viewer.layers[0].source.path #when MyWidget is activated it search for exisiting image
-        self.time_data=get_times(self)#init times of initial image
-        self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
-      except (IndexError,AttributeError): # if no image is found then an index Error would occur
-          pass
-
+      
       
 
    def _init_mpl_widgets(self):
@@ -118,19 +115,39 @@ class Frame_rate_Widget(QWidget):
 
       This method generates a matplotlib.backends.backend_qt5agg.FigureCanvas and populates it with a
       matplotlib.pyplot.figure. The canvas is added to the QWidget Layout afterwards.
-     """
+      """
       self.fig = plt.figure()
       self.canvas = FigureCanvas(self.fig)
       self.ax = self.fig.add_subplot(211)
       self.ax2 = self.fig.add_subplot(212)
       self.layout.addWidget(self.canvas)
+      self.init_data() #try to init data if it exists
+
+     
       #self.setWindowTitle('Plot frame rate or frame times')
+      
+   def init_data(self):
       try:
-         self.plot_frame_data() #automatically plot frame data when Mywidget is called
-      except(IndexError): # if no image is placed yet then Errors would occur when the source is retrieved
-          pass
+         if self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
+            self.image_path = self._viewer.layers[0].source.path
+            self.time_data=get_times(self)#init times of initial image
+            self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
+            self.plot_frame_data()
+            #try:
+               #self._viewer.layers.index('Slow motion')
+
+            #except(ValueError):# if no slowmo icon exists, it creates one
+            self.create_SlowMo_icon()
+            self.slow_mo()
+            
+            self._viewer.dims.events.current_step.connect(self.plot_slider_position)
+            self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
+
+      except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
+         print('Meta data not readable')
       
-      
+   def init_after_timer(self): ##wooow directly put in connect
+      self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
    
    def plot_times(self):
       self.ax.clear() #clear plot before plotting
@@ -165,7 +182,7 @@ class Frame_rate_Widget(QWidget):
       return frame_rate
    
    def plot_frame_rate(self,unit_frame_r='Hz'):
-
+      
       self.ax2.clear() #clear plot before plotting
       self.ax2.set_ylabel('Frame rate ['+unit_frame_r+']')
       self.ax2.ticklabel_format(axis='x', style='scientific', scilimits=(0,0), useMathText='True')
@@ -180,9 +197,8 @@ class Frame_rate_Widget(QWidget):
          self.ax2.plot(self.frame_rate_data)
          vline_pos=self._viewer.dims.current_step[0]
          txt_text_box='Current frame number = '+str(self._viewer.dims.current_step[0])
-      
 
-      self.ax2.set_ylim(0,self.ax2.get_ylim()[1]*1.1) #increase plot for text space
+      self.ax2.set_ylim(0,self.ax2.get_ylim()[1]*1.2) #increase plot for text space
       self.line_2=self.ax2.axvline(vline_pos,0,1,linewidth=1, color='indianred')#initialise a vertical line
       props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
       self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
@@ -190,9 +206,6 @@ class Frame_rate_Widget(QWidget):
 
    
    def plot_frame_data(self):#,event = None)
-      self.image_path = self._viewer.layers[0].source.path #update image_path
-      self.time_data=get_times(self) #update time and frame rate data
-      self.frame_rate_data=self.get_frame_rate()
       self.plot_times()
       self.plot_frame_rate()
       current_frame=self._viewer.dims.current_step[0]
@@ -204,9 +217,7 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#init Qlabels
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
-      self.create_SlowMo_icon() #WOoW
-      self.slow_mo()
-      
+        
       
    def plot_slider_position(self,event): #event information stored in "event"
       """ Method plots and updates slider position on the canvas.
@@ -280,7 +291,11 @@ class Frame_rate_Widget(QWidget):
       if not ('Slow motion ' in event.source):
          self._viewer.dims.events.current_step.disconnect(self.update_slowMo_icon)
       if len(event.source)==0:
-         self._viewer.window.remove_dock_widget(self)
+         try:
+            self._viewer.window.remove_dock_widget(self)
+            self.image_path=None
+         except:
+            print('Dock already deleted')
 
 
 
@@ -332,14 +347,6 @@ class Add_time_scroller(QWidget):
 
       self.init_data()
       self._viewer.layers.events.inserted.connect(self.init_data) #init data when layer is inserted
-      #events
-      #self._viewer.layers.events.inserted.connect(self.init_data) #init data when layer is inserted
-      #self.bottom_dock_button.clicked.connect(self.move_dock_to_bottom)
-      #self.slow_down_button.clicked.connect(self.slow_animation)
-      #self.play_button.clicked.connect(self.play)
-      #self.speed_up_button.clicked.connect(self.speed_animation)
-      #self._viewer.dims.events.current_step.connect(self.update_scroller_from_dims)#link window srolle to time srolle
-      #self.time_scroller.valueChanged.connect(self.update_scroller_from_scroller) #link  
 
    def create_bottom_dock_button(self):
       self.bottom_dock_button=QPushButton('↓↓')
@@ -389,7 +396,7 @@ class Add_time_scroller(QWidget):
    def create_axis_label(self):
       self.axis_label1=QLabel('End time')
       self.axis_label2=QLabel('Current time')
-      #self.axis_label1.setMargin(0)
+      
 
    def init_data(self):
       
@@ -410,10 +417,10 @@ class Add_time_scroller(QWidget):
                #init label2
                self.axis_label2.setText('| '+str(self.time_data[-1])+' [ms]')
                width2 = self.axis_label2.fontMetrics().boundingRect(self.axis_label2.text()).width() #max width of text
-               self.axis_label2.setFixedWidth(1.1*width2)
+               self.axis_label2.setFixedWidth(int(1.1*width2))
                #init Label1
                self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
-               self.axis_label1.setFixedWidth(0.7*width2)
+               self.axis_label1.setFixedWidth(int(0.7*width2))
 
                #events
                self.bottom_dock_button.clicked.connect(self.move_dock_to_bottom)
@@ -426,7 +433,7 @@ class Add_time_scroller(QWidget):
                self.data_is_avable=True
 
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
-          pass
+          print('Meta data not readable')
 
    def init_time_interval(self):
       """This method sets the time discretisation interval of the system, for the animation and scroll bar.
@@ -501,7 +508,12 @@ class Add_time_scroller(QWidget):
 
    def update_widget(self,event):
       if len(event.source)==0:
-         self._viewer.window.remove_dock_widget(self)
+         try:
+            self._viewer.window.remove_dock_widget(self)
+            self.image_path=None
+         except:
+            print('Dock already deleted')
+         
 
 
 from magicgui import magic_factory
