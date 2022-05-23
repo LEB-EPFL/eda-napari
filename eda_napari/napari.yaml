@@ -4,11 +4,11 @@ contributions:
     - id: eda-napari.frame_rate_widget
       title: open my widget
       python_name: eda_napari._widget:Frame_rate_Widget
-    - id: eda-napari.add_time_scroller
+    - id: eda-napari.Time_scroller_widget
       title: add time scroller widget
-      python_name: eda_napari._widget:Add_time_scroller
+      python_name: eda_napari._widget:Time_scroller_widget
   widgets:
     - command: eda-napari.frame_rate_widget 
-      display_name: Plot Frame rate
-    - command: eda-napari.add_time_scroller
+      display_name: Plot frame rate
+    - command: eda-napari.Time_scroller_widget
       display_name: Add time scroller

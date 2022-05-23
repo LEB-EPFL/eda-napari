@@ -3,9 +3,7 @@ from curses.panel import bottom_panel
 from napari.utils.notifications import show_info
 import matplotlib.style as style
 import os
-style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 import matplotlib.pyplot as plt
-#from mpl_interactions import ioff, panhandler, zoom_factory
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
 import magicgui
@@ -25,10 +23,7 @@ import xmltodict
 from PIL import Image
 from skimage.filters import threshold_otsu
 
-
-
-
-
+style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
 label_style = stylesheet.read()
 
@@ -299,16 +294,16 @@ class Frame_rate_Widget(QWidget):
 
 
 
-class Add_time_scroller(QWidget):
-   """Add_time_scroller class is a widget that creates a time scroll bar.  The scroll bar allows to animate stacks of 
+class Time_scroller_widget(QWidget):
+   """Time_scroller_widget class is a widget that creates a time scroll bar.  The scroll bar allows to animate stacks of 
    images linearly with time. Similary to the napari scroll bar, it has a play, stop, next and previous button."""
    
    def __init__(self, napari_viewer):
-      """Constructor of the Add_time_scroller.
+      """Constructor of the Time_scroller_widget.
       
       This constructor initialises the button widgets and scroll bar widget in a QHBoxlayout. It also initialise the time of the frames
       from the image data available. Some signals are also defined to allow interaction and automatic updates between the current layer and
-      the Add_time_scroller widget. A Qtimer is defined to controll the animation.
+      the Time_scroller_widget widget. A Qtimer is defined to controll the animation.
       """   
       super().__init__()
       self._viewer = napari_viewer
