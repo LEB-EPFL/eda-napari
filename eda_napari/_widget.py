@@ -1,6 +1,3 @@
-
-from curses.panel import bottom_panel
-from napari.utils.notifications import show_info
 import matplotlib.style as style
 import os
 import matplotlib.pyplot as plt
@@ -12,21 +9,24 @@ from typing import Union
 import qtpy
 from qtpy.QtCore import Qt, QTimer
 import numpy as np
-from pathlib import Path
 import math
 
 import napari
 import tifffile
 import xmltodict
 
-
-from PIL import Image
 from skimage.filters import threshold_otsu
 
+#Stylesheets
+############
 style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
 label_style = stylesheet.read()
 
+
+
+#Widgets
+############
 
 #Union is a type: it forms the math union.
 #It means the widget could be a magicgui widget or a qtpy widget.                                             
@@ -44,7 +44,8 @@ class Frame_rate_Widget(QWidget):
       """Constructor of the Frame_rate_Widget.
       
       This constructor initialises two blank canvases,the class's viewer to the napari viewer and connects events to functions to allow dynamic plots.
-      A newly inserted file or modification of slider position in napari causes the plot to update.
+      A newly inserted file or modification of slider position in napari causes the plot to update. The update after an insertion waits a certain Twait time before executing to ensure
+      napari has time to fully import all the layers. The wait is implemented with a QTimer.
       """
       super().__init__()
       self._viewer = napari_viewer
@@ -65,7 +66,7 @@ class Frame_rate_Widget(QWidget):
       self.button_axis_change.clicked.connect(self.change_axis)
       
 
-      self.grid_layout.setAlignment(Qt.AlignHCenter) #Woow possible to do this with external style sheet
+      self.grid_layout.setAlignment(Qt.AlignHCenter) 
       self.grid_layout.setSpacing(2)
       self.grid_layout.setColumnMinimumWidth(0, 86)
       self.grid_layout.setColumnStretch(1, 1)
@@ -98,17 +99,12 @@ class Frame_rate_Widget(QWidget):
 
       #events
       self._viewer.layers.events.inserted.connect(self.init_after_timer)
-      #self._viewer.dims.events.current_step.connect(self.plot_slider_position)
-      #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
       self._viewer.layers.events.removed.connect(self.update_widget)
 
-      
-      
-
    def _init_mpl_widgets(self):
-      """Method to initialise 2 matplotlib figure canvases with a basic layout and title.
+      """Method to initialise two matplotlib figure canvases with a basic layout and title.
 
-      This method generates a matplotlib.backends.backend_qt5agg.FigureCanvas and populates it with a
+      This method generates a matplotlib FigureCanvas and populates it with a
       matplotlib.pyplot.figure. The canvas is added to the QWidget Layout afterwards.
       """
       self.fig = plt.figure()
@@ -117,9 +113,6 @@ class Frame_rate_Widget(QWidget):
       self.ax2 = self.fig.add_subplot(212)
       self.layout.addWidget(self.canvas)
       self.init_data() #try to init data if it exists
-
-     
-      #self.setWindowTitle('Plot frame rate or frame times')
       
    def init_data(self):
       try:
@@ -128,10 +121,6 @@ class Frame_rate_Widget(QWidget):
             self.time_data=get_times(self)#init times of initial image
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
             self.plot_frame_data()
-            #try:
-               #self._viewer.layers.index('Slow motion')
-
-            #except(ValueError):# if no slowmo icon exists, it creates one
             self.create_SlowMo_icon()
             self.slow_mo()
             
@@ -141,7 +130,7 @@ class Frame_rate_Widget(QWidget):
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
       
-   def init_after_timer(self): ##wooow directly put in connect
+   def init_after_timer(self):
       self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
    
    def plot_times(self):
@@ -161,7 +150,7 @@ class Frame_rate_Widget(QWidget):
       Output: Vector of frame rates in [kHz] or [Hz]
       
       The frame rate is calculate for each frame. Since the system is discrete, it must be approximated.
-       For the first frame, the frame rate is approximated with the second frame time.For the other frames, the rate is calculated with the previous frame time."""
+      For the first frame, the frame rate is approximated with the second frame time.For the other frames, the rate is calculated with the previous frame time."""
      
       if unit_frame_r=='Hz':
          conversion_factor =1000     #convert to kHz to Hz
@@ -200,7 +189,7 @@ class Frame_rate_Widget(QWidget):
       self.fig.canvas.draw()
 
    
-   def plot_frame_data(self):#,event = None)
+   def plot_frame_data(self):
       self.plot_times()
       self.plot_frame_rate()
       current_frame=self._viewer.dims.current_step[0]
@@ -219,8 +208,8 @@ class Frame_rate_Widget(QWidget):
 
       Input: event of current_step from slider
       Output: -
-      After moving the slider on napari this function is called to update the vertical lines. The vertical
-      lines show the frame rate and capture time of the current image disaplayed napari viewer"""
+      After moving the slider on napari viewer, this function is called to update the vertical lines. The vertical
+      lines show the frame rate and capture time of the current image disaplayed in the napari viewer."""
       current_frame=event.source.current_step[0]
       self.line_1.set_xdata(current_frame) #update line
       if self.frame_x_axis_time:
@@ -276,9 +265,9 @@ class Frame_rate_Widget(QWidget):
 
 
    def update_widget(self,event):
-      """ Method updates the widget in case of layer deletion
+      """ Method updates the widget in case of layer deletion.
 
-      Input: event created my deleted layer
+      Input: event created my deleted layer.
       Output: -
       If slow motion is removed then the napari viewer is disconnected to the slow motion shape.
       If all layers are removed the dock plugin is removed.
@@ -394,8 +383,6 @@ class Time_scroller_widget(QWidget):
       
 
    def init_data(self):
-      
-       
       """This method initialises all the additonal data after an image stack is available and readable.
       """ 
       try:
@@ -457,7 +444,7 @@ class Time_scroller_widget(QWidget):
 
 
    def play_step(self):
-      """This method advances the time of 1 time interval and takes car of updating the current displayed frame if necessary.
+      """This method advances the time of 1 time interval and takes care of updating the current displayed frame if necessary.
       """ 
       if self._viewer.dims.current_step[0]== self.number_frames-1:
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
@@ -509,22 +496,6 @@ class Time_scroller_widget(QWidget):
          except:
             print('Dock already deleted')
          
-
-
-from magicgui import magic_factory
-# decorate your function with the @magicgui decorator
-@magic_factory #what does this do? with it doesn't work for me
-def show_plot(
-    image: "napari.types.ImageData", threshold: int
-   ) -> "napari.types.LabelsData":
-    """magicgui allows to quickly create a widget after defining an input and output type.
-    This test creates thresholded image.
-
-    This pattern uses magicgui.magic_factory directly to turn a function
-    into a callable that returns a widget.
-    """
-    return (image > threshold).astype(int)
-
   
    
 def get_times(widget):
@@ -532,9 +503,12 @@ def get_times(widget):
    
    Input:-
    Output: Vector of time metadata [ms] of images found at given image path and channel.
+
    The times of each image stack from a ome.tif file is read in [ms] or [s] and then returned in [ms]. 
    The times are taken from a given channel. The data can only be read from an ome.tif file. The Offset 
-   from time t=0 subrtracted to the times before it is returned."""
+   from time t=0 subrtracted to the times before it is returned.
+   The following code is inspired from the solution for reading tiff files metadata from Willi Stepp.
+   """
    times=[]
    with tifffile.TiffFile(widget.image_path) as tif:
       XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
@@ -555,3 +529,22 @@ def get_times(widget):
    
    times = [x - times[0] for x in times] #remove any offset from time=0
    return times
+
+
+#EXAMPLE of magicgui widget
+###########################
+#the following code is not used for the execution of the widgets but could be used in the case of the addition of magicgui widgets
+
+from magicgui import magic_factory
+# decorate your function with the @magicgui decorator
+@magic_factory
+def show_plot(
+    image: "napari.types.ImageData", threshold: int
+   ) -> "napari.types.LabelsData":
+    """magicgui allows to quickly create a widget after defining an input and output type.
+    This test creates thresholded image.
+
+    This pattern uses magicgui.magic_factory directly to turn a function
+    into a callable that returns a widget.
+    """
+    return (image > threshold).astype(int)
