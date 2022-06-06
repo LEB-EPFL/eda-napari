@@ -1,35 +1,32 @@
+#Stylesheet for matplotlib plot of Frame _rate_widget.
+#######################
+
 #font size
 font.size:8.0
 axes.titlesize: 12.0
 axes.labelsize: 10.0
 
 
-# Set black background default line colors to white. 
+#Set colors.
 lines.color: black
 patch.edgecolor: black
 
 text.color: white
-
 axes.facecolor: white
 axes.edgecolor: black
 axes.labelcolor: white
 axes.prop_cycle: cycler('color', ['k', 'feffb3', 'bfbbd9', 'fa8174', '81b1d2', 'fdb462', 'b3de69', 'bc82bd', 'ccebc4', 'ffed6f'])
-
 xtick.color: white
 ytick.color: white
-
-grid.color: 0.8
-axes.grid: True		#by default grid
-axes.grid.which: major
-
-
 figure.facecolor: 49525c
 figure.edgecolor: 49525c
-
 savefig.facecolor: black
 savefig.edgecolor: black
 
-
+#grid
+grid.color: 0.8
+axes.grid: True	#by default grid
+axes.grid.which: major
 
 #automatically adjust padding
 figure.autolayout: True 
