@@ -1,3 +1,5 @@
+#This file is the code for automatic loading of napari with images and specified plugin
+#The file can be used for saving time during tests and when wanting to visulaise multiple times the same image file.
 import napari
 import os
 

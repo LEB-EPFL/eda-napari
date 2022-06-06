@@ -23,8 +23,6 @@ style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path 
 stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
 label_style = stylesheet.read()
 
-
-
 #Widgets
 ############
 
@@ -35,7 +33,7 @@ Widget = Union["magicgui.widgets.Widget", "qtpy.QtWidgets.QWidget"]
 class Frame_rate_Widget(QWidget):
    """The Frame rate plotter widget.
 
-      This widget is a object inheriting from QWidget. Defining Frame_rate_Widget in the manifest 
+      This widget is a object inheriting from QWidget. Defining Frame_rate_Widget in the manifest. 
       "napari.yaml" allows Napari to reconise it's existance and display it in the plugin. Upon it's creation the __init__ function ensures
       the execution of specific functions and plots the frame rates of an OME.tiff file inserted in the napari viewer.
    """
@@ -64,7 +62,6 @@ class Frame_rate_Widget(QWidget):
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
-      
 
       self.grid_layout.setAlignment(Qt.AlignHCenter) 
       self.grid_layout.setSpacing(2)
@@ -75,7 +72,6 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.addWidget(self.frame_number_label, 1, 0)
       self.frame_number_value=QLabel("-")
       self.grid_layout.addWidget(self.frame_number_value, 1, 1)
-
 
       self.frame_time_label = QLabel("Time of frame capture: ")
       self.grid_layout.addWidget(self.frame_time_label, 2, 0)
@@ -94,7 +90,7 @@ class Frame_rate_Widget(QWidget):
       self.Twait=2500
       self.timer=QTimer()
       self.timer.setInterval(self.Twait)
-      self.timer.setSingleShot(True)
+      self.timer.setSingleShot(True)#timer only runs once
       self.timer.timeout.connect(self.init_data)
 
       #events
@@ -188,7 +184,6 @@ class Frame_rate_Widget(QWidget):
       self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
       self.fig.canvas.draw()
 
-   
    def plot_frame_data(self):
       self.plot_times()
       self.plot_frame_rate()
@@ -202,7 +197,6 @@ class Frame_rate_Widget(QWidget):
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
         
-      
    def plot_slider_position(self,event): #event information stored in "event"
       """ Method plots and updates slider position on the canvas.
 
@@ -224,8 +218,6 @@ class Frame_rate_Widget(QWidget):
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
       self.fig.canvas.draw()
 
-     
-
    def change_axis(self):
       self.frame_x_axis_time=not self.frame_x_axis_time
       if self.frame_x_axis_time:
@@ -243,7 +235,6 @@ class Frame_rate_Widget(QWidget):
       polygon=[triangle,rectangle]
       self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
                           edge_color='black', name='Slow motion')
-
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')
       self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
       
@@ -263,7 +254,6 @@ class Frame_rate_Widget(QWidget):
          else:
             self.slow_mo_array[i]=True
 
-
    def update_widget(self,event):
       """ Method updates the widget in case of layer deletion.
 
@@ -280,8 +270,6 @@ class Frame_rate_Widget(QWidget):
             self.image_path=None
          except:
             print('Dock already deleted')
-
-
 
 class Time_scroller_widget(QWidget):
    """Time_scroller_widget class is a widget that creates a time scroll bar.  The scroll bar allows to animate stacks of 
@@ -303,10 +291,8 @@ class Time_scroller_widget(QWidget):
       self.show_time=50#animation default display time ms
       self.time_interval=None # time of the discretised time interval [ms]
       self.interval_frames_index=[]#discretised time interval filled with an index the the different frames.
-      self.data_is_available=False
       self.step=1
       self.critical_ms=30
-   
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
 
@@ -339,7 +325,6 @@ class Time_scroller_widget(QWidget):
    def move_dock_to_bottom(self):
      self.parentWidget().parentWidget().addDockWidget(Qt.BottomDockWidgetArea,self.parentWidget()) # init position in QDockWidget (parent) to bottom in QWindow
      self.bottom_dock_button.deleteLater()
-
 
    def create_slow_down(self):
       self.slow_down_button=QPushButton('x 0.5')
@@ -381,7 +366,6 @@ class Time_scroller_widget(QWidget):
       self.axis_label1=QLabel('End time')
       self.axis_label2=QLabel('Current time')
       
-
    def init_data(self):
       """This method initialises all the additonal data after an image stack is available and readable.
       """ 
@@ -428,7 +412,6 @@ class Time_scroller_widget(QWidget):
       min_diff=min(diff)
       self.time_interval = math.floor(min_diff/4)#this makes sure a relevant discretisation of time is made for the animation
    
-   
    def set_frames_index(self):
       """This method sets self.interval_frames_index with image frames numbers. Each index corresponds the appropiate image frame
       that should be displayed in the discretized time.
@@ -441,7 +424,6 @@ class Time_scroller_widget(QWidget):
          if self.time_data[frame_index+1] < t:
             frame_index+=1
          self.interval_frames_index.append(frame_index)
-
 
    def play_step(self):
       """This method advances the time of 1 time interval and takes care of updating the current displayed frame if necessary.
@@ -487,7 +469,6 @@ class Time_scroller_widget(QWidget):
       else:
          self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
 
-
    def update_widget(self,event):
       if len(event.source)==0:
          try:
@@ -497,7 +478,6 @@ class Time_scroller_widget(QWidget):
             print('Dock already deleted')
          
   
-   
 def get_times(widget):
    """Method that gets the capture time from the metadata.
    
