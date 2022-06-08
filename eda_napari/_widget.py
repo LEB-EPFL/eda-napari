@@ -1,13 +1,14 @@
-import matplotlib.style as style
 import os
+import traceback
+import matplotlib.style as style
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvas  #Qt binding not specified (PyQt5, PyQt4...)
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
-import magicgui
-from magicgui import magic_factory
 from typing import Union
 import qtpy
 from qtpy.QtCore import Qt, QTimer
+import magicgui
+from magicgui import magic_factory
 import numpy as np
 import math
 
@@ -125,6 +126,9 @@ class Frame_rate_Widget(QWidget):
 
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
+      except KeyError:
+         print('Dictionary access in get_times fails. Tif file does not have the adapted keys.')
+         traceback.print_exc()#prints the info of error
       
    def init_after_timer(self):
       self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
@@ -292,7 +296,7 @@ class Time_scroller_widget(QWidget):
       self.time_interval=None # time of the discretised time interval [ms]
       self.interval_frames_index=[]#discretised time interval filled with an index the the different frames.
       self.step=1
-      self.critical_ms=30
+      self.critical_ms=160
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
 
@@ -400,6 +404,9 @@ class Time_scroller_widget(QWidget):
 
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           print('Meta data not readable')
+      except KeyError:
+         print('Dictionary access in get_times fails. Tif file does not have the adapted keys.')
+         traceback.print_exc()#prints the info of error
 
    def init_time_interval(self):
       """This method sets the time discretisation interval of the system, for the animation and scroll bar.
