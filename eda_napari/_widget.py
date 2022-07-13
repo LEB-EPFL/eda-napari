@@ -1,31 +1,29 @@
+
+from curses.panel import bottom_panel
+from napari.utils.notifications import show_info
 import os
-import traceback
-import matplotlib.style as style
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas  #Qt binding not specified (PyQt5, PyQt4...)
+import pyqtgraph as qtplt
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
+import magicgui
+from magicgui import magic_factory
 from typing import Union
 import qtpy
 from qtpy.QtCore import Qt, QTimer
-import magicgui
-from magicgui import magic_factory
 import numpy as np
+from pathlib import Path
 import math
 
 import napari
 import tifffile
 import xmltodict
 
+
+from PIL import Image
 from skimage.filters import threshold_otsu
 
-#Stylesheets
-############
-style.use(str(os.path.dirname(__file__))+'/plot_stylesheet.mplstyle') #get path of parent directory of script since plot_stylesheet is in the same directory
 stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
 label_style = stylesheet.read()
 
-#Widgets
-############
 
 #Union is a type: it forms the math union.
 #It means the widget could be a magicgui widget or a qtpy widget.                                             
@@ -34,7 +32,7 @@ Widget = Union["magicgui.widgets.Widget", "qtpy.QtWidgets.QWidget"]
 class Frame_rate_Widget(QWidget):
    """The Frame rate plotter widget.
 
-      This widget is a object inheriting from QWidget. Defining Frame_rate_Widget in the manifest. 
+      This widget is a object inheriting from QWidget. Defining Frame_rate_Widget in the manifest 
       "napari.yaml" allows Napari to reconise it's existance and display it in the plugin. Upon it's creation the __init__ function ensures
       the execution of specific functions and plots the frame rates of an OME.tiff file inserted in the napari viewer.
    """
@@ -43,8 +41,7 @@ class Frame_rate_Widget(QWidget):
       """Constructor of the Frame_rate_Widget.
       
       This constructor initialises two blank canvases,the class's viewer to the napari viewer and connects events to functions to allow dynamic plots.
-      A newly inserted file or modification of slider position in napari causes the plot to update. The update after an insertion waits a certain Twait time before executing to ensure
-      napari has time to fully import all the layers. The wait is implemented with a QTimer.
+      A newly inserted file or modification of slider position in napari causes the plot to update.
       """
       super().__init__()
       self._viewer = napari_viewer
@@ -63,8 +60,9 @@ class Frame_rate_Widget(QWidget):
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
+      
 
-      self.grid_layout.setAlignment(Qt.AlignHCenter) 
+      self.grid_layout.setAlignment(Qt.AlignHCenter) #Woow possible to do this with external style sheet
       self.grid_layout.setSpacing(2)
       self.grid_layout.setColumnMinimumWidth(0, 86)
       self.grid_layout.setColumnStretch(1, 1)
@@ -73,6 +71,7 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.addWidget(self.frame_number_label, 1, 0)
       self.frame_number_value=QLabel("-")
       self.grid_layout.addWidget(self.frame_number_value, 1, 1)
+
 
       self.frame_time_label = QLabel("Time of frame capture: ")
       self.grid_layout.addWidget(self.frame_time_label, 2, 0)
@@ -84,32 +83,39 @@ class Frame_rate_Widget(QWidget):
       self.frame_rate_value=QLabel("-")
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
   
-      self._init_mpl_widgets() 
+      self._init_qtplt_widgets() 
       self.layout.addWidget(self.button_axis_change)
       self.layout.addLayout(self.grid_layout)
       #QTimer, this Q timer will be used to load data after a certain wait time
       self.Twait=2500
       self.timer=QTimer()
       self.timer.setInterval(self.Twait)
-      self.timer.setSingleShot(True)#timer only runs once
+      self.timer.setSingleShot(True)
       self.timer.timeout.connect(self.init_data)
 
       #events
       self._viewer.layers.events.inserted.connect(self.init_after_timer)
+      #self._viewer.dims.events.current_step.connect(self.plot_slider_position)
+      #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
       self._viewer.layers.events.removed.connect(self.update_widget)
 
-   def _init_mpl_widgets(self):
-      """Method to initialise two matplotlib figure canvases with a basic layout and title.
 
-      This method generates a matplotlib FigureCanvas and populates it with a
+   def _init_qtplt_widgets(self):
+      """Method to initialise 2 PyQt graph figure canvases with a basic layout and title.
+
+      This method generates a matplotlib.backends.backend_qt5agg.FigureCanvas and populates it with a
       matplotlib.pyplot.figure. The canvas is added to the QWidget Layout afterwards.
       """
-      self.fig = plt.figure()
-      self.canvas = FigureCanvas(self.fig)
-      self.ax = self.fig.add_subplot(211)
-      self.ax2 = self.fig.add_subplot(212)
-      self.layout.addWidget(self.canvas)
+      self.canvas1 = qtplt.PlotWidget()
+      self.canvas2 = qtplt.PlotWidget()
+      self.layout.addWidget(self.canvas1)
+      self.layout.addWidget(self.canvas2)
+      self.canvas1.setBackground('w')
+      self.canvas2.setBackground('w')
       self.init_data() #try to init data if it exists
+
+     
+      #self.setWindowTitle('Plot frame rate or frame times')
       
    def init_data(self):
       try:
@@ -117,31 +123,32 @@ class Frame_rate_Widget(QWidget):
             self.image_path = self._viewer.layers[0].source.path
             self.time_data=get_times(self)#init times of initial image
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
-            self.plot_frame_data()
+            self.qtplot_frame_data()
+            #try:
+               #self._viewer.layers.index('Slow motion')
+
+            #except(ValueError):# if no slowmo icon exists, it creates one
             self.create_SlowMo_icon()
             self.slow_mo()
             
-            self._viewer.dims.events.current_step.connect(self.plot_slider_position)
+            self._viewer.dims.events.current_step.connect(self.qtplot_slider_position)
             self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
 
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
-      except KeyError:
-         print('Dictionary access in get_times fails. Tif file does not have the adapted keys.')
-         traceback.print_exc()#prints the info of error
       
-   def init_after_timer(self):
+   def init_after_timer(self): ##wooow directly put in connect
       self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
-   
-   def plot_times(self):
-      self.ax.clear() #clear plot before plotting
-      self.ax.set_ylabel('Time [ms]')
-      self.ax.set_xlabel('Frame number')
-      self.ax.set_title('Evolution of elapsed time')
-      self.ax.plot(self.time_data)
-      self.ax.ticklabel_format(axis='y', style='scientific', scilimits=(0,0), useMathText='True')
-      self.line_1=self.ax.axvline(self._viewer.dims.current_step[0],0,1,linewidth=1, color='indianred')#initilaise a vertical line
-      self.fig.canvas.draw()
+
+   def qtplot_times(self):
+      self.canvas1.clear() #clear plot before plotting
+      self.canvas1.setLabel('left','Time [ms]')
+      self.canvas1.setLabel('bottom','Frame number')
+      self.canvas1.setTitle('Evolution of elapsed time')
+      self.canvas1.plot(range(1,len(self.time_data)+1),self.time_data)
+      redpen = qtplt.mkPen(color=(255,0,0),width=1)
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.canvas1.addItem(self.line_1)
 
    def get_frame_rate(self,unit_frame_r='Hz'):
       """ Method that returns frame rate.
@@ -150,13 +157,14 @@ class Frame_rate_Widget(QWidget):
       Output: Vector of frame rates in [kHz] or [Hz]
       
       The frame rate is calculate for each frame. Since the system is discrete, it must be approximated.
-      For the first frame, the frame rate is approximated with the second frame time.For the other frames, the rate is calculated with the previous frame time."""
+       For the first frame, the frame rate is approximated with the second frame time.For the other frames, the rate is calculated with the previous frame time."""
      
-      if unit_frame_r=='Hz':
+      if unit_frame_r.lower()=='hz':
          conversion_factor =1000     #convert to kHz to Hz
-      elif unit_frame_r=='kHz':
+      elif unit_frame_r.lower()=='khz':
          conversion_factor=1  #inital data is in kHz since time is diplayed in ms
       else:
+         raise AttributeError
          print('unit of frame rate not reconised: please use Hz or kHz')
 
       N_frames= len(self.time_data)
@@ -164,63 +172,66 @@ class Frame_rate_Widget(QWidget):
       for i in range(1,N_frames):
          frame_rate.append(conversion_factor/abs(self.time_data[i]-self.time_data[i-1]))
       return frame_rate
-   
-   def plot_frame_rate(self,unit_frame_r='Hz'):
+
+   def qtplot_frame_rate(self,unit_frame_r='Hz'):
       
-      self.ax2.clear() #clear plot before plotting
-      self.ax2.set_ylabel('Frame rate ['+unit_frame_r+']')
-      self.ax2.ticklabel_format(axis='x', style='scientific', scilimits=(0,0), useMathText='True')
-      self.ax2.set_title('Evolution of the Frame rate ')
+      self.canvas2.clear() #clear plot before plotting
+      self.canvas2.setLabel('left','Frame rate ['+unit_frame_r+']')
+      self.canvas2.setTitle('Evolution of the Frame rate ')
       if self.frame_x_axis_time:
-         self.ax2.set_xlabel('Time [ms]')
-         self.ax2.plot(self.time_data,self.frame_rate_data)
+         self.canvas2.setLabel('bottom','Time [ms]')
+         self.canvas2.plot(self.time_data,self.frame_rate_data)
          vline_pos=self.time_data[self._viewer.dims.current_step[0]]
          txt_text_box='Time of current frame = '+str(self.time_data[self._viewer.dims.current_step[0]])+'[ms]'
       else:
-         self.ax2.set_xlabel('Frame number')
-         self.ax2.plot(self.frame_rate_data)
+         self.canvas2.setLabel('bottom','Frame number')
+         self.canvas2.plot(self.frame_rate_data)
          vline_pos=self._viewer.dims.current_step[0]
          txt_text_box='Current frame number = '+str(self._viewer.dims.current_step[0])
 
-      self.ax2.set_ylim(0,self.ax2.get_ylim()[1]*1.2) #increase plot for text space
-      self.line_2=self.ax2.axvline(vline_pos,0,1,linewidth=1, color='indianred')#initialise a vertical line
-      props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
-      self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
-      self.fig.canvas.draw()
+      #self.ax2.set_ylim(0,self.ax2.get_ylim()[1]*1.2) #increase plot for text space
+      redpen = qtplt.mkPen(color=(255,0,0),width=1)
+      self.line_2=qtplt.InfiniteLine(pos=vline_pos,pen=redpen)#initialise a vertical line
+      self.canvas2.addItem(self.line_2)
+      #props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
+      #self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
 
-   def plot_frame_data(self):
-      self.plot_times()
-      self.plot_frame_rate()
+
+   def qtplot_frame_data(self):#,event = None)
+      self.qtplot_times()
+      self.qtplot_frame_rate()
       current_frame=self._viewer.dims.current_step[0]
       if self.frame_x_axis_time:
-         self.line_2.set_xdata(self.time_data[current_frame])#update according to x axis (time or frame)
+         self.line_2.setValue(self.time_data[current_frame])#update according to x axis (time or frame)
       else: 
-         self.line_2.set_xdata(current_frame)
+         self.line_2.setValue(current_frame)
 
       self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#init Qlabels
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
         
-   def plot_slider_position(self,event): #event information stored in "event"
+      
+   def qtplot_slider_position(self,event): #event information stored in "event"
       """ Method plots and updates slider position on the canvas.
 
       Input: event of current_step from slider
       Output: -
-      After moving the slider on napari viewer, this function is called to update the vertical lines. The vertical
-      lines show the frame rate and capture time of the current image disaplayed in the napari viewer."""
+      After moving the slider on napari this function is called to update the vertical lines. The vertical
+      lines show the frame rate and capture time of the current image disaplayed napari viewer"""
       current_frame=event.source.current_step[0]
-      self.line_1.set_xdata(current_frame) #update line
+      self.line_1.setValue(current_frame) #update line
       if self.frame_x_axis_time:
-         self.line_2.set_xdata(self.time_data[current_frame])#update according to x axis (time or frame)
-         self.text_box.set_text('Time of current frame = '+str(self.time_data[current_frame])+'[ms]')
+         self.line_2.setValue(self.time_data[current_frame])#update according to x axis (time or frame)
+         #self.text_box.set_text('Time of current frame = '+str(self.time_data[current_frame])+'[ms]')
       else: 
-         self.line_2.set_xdata(current_frame)
-         self.text_box.set_text('Current frame number = '+str(self._viewer.dims.current_step[0]))
+         self.line_2.setValue(current_frame)
+         #self.text_box.set_text('Current frame number = '+str(self._viewer.dims.current_step[0]))
 
       self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#update Qlabels
       self.frame_number_value.setText(str(current_frame))
       self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
-      self.fig.canvas.draw()
+
+     
 
    def change_axis(self):
       self.frame_x_axis_time=not self.frame_x_axis_time
@@ -231,7 +242,7 @@ class Frame_rate_Widget(QWidget):
       else:
          button_txt='Frame number -> Time'
       self.button_axis_change.setText(button_txt)
-      self.plot_frame_rate()
+      self.qtplot_frame_rate()
 
    def create_SlowMo_icon(self):
       triangle=np.array([[20, 60], [60, 60], [40, 90]])
@@ -239,6 +250,7 @@ class Frame_rate_Widget(QWidget):
       polygon=[triangle,rectangle]
       self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
                           edge_color='black', name='Slow motion')
+
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')
       self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
       
@@ -258,10 +270,11 @@ class Frame_rate_Widget(QWidget):
          else:
             self.slow_mo_array[i]=True
 
-   def update_widget(self,event):
-      """ Method updates the widget in case of layer deletion.
 
-      Input: event created my deleted layer.
+   def update_widget(self,event):
+      """ Method updates the widget in case of layer deletion
+
+      Input: event created my deleted layer
       Output: -
       If slow motion is removed then the napari viewer is disconnected to the slow motion shape.
       If all layers are removed the dock plugin is removed.
@@ -274,6 +287,8 @@ class Frame_rate_Widget(QWidget):
             self.image_path=None
          except:
             print('Dock already deleted')
+
+
 
 class Time_scroller_widget(QWidget):
    """Time_scroller_widget class is a widget that creates a time scroll bar.  The scroll bar allows to animate stacks of 
@@ -295,8 +310,10 @@ class Time_scroller_widget(QWidget):
       self.show_time=50#animation default display time ms
       self.time_interval=None # time of the discretised time interval [ms]
       self.interval_frames_index=[]#discretised time interval filled with an index the the different frames.
+      self.data_is_available=False
       self.step=1
-      self.critical_ms=160
+      self.critical_ms=30
+   
       self.timer=QTimer(self)
       self.timer.timeout.connect(self.play_step)
 
@@ -330,6 +347,7 @@ class Time_scroller_widget(QWidget):
      self.parentWidget().parentWidget().addDockWidget(Qt.BottomDockWidgetArea,self.parentWidget()) # init position in QDockWidget (parent) to bottom in QWindow
      self.bottom_dock_button.deleteLater()
 
+
    def create_slow_down(self):
       self.slow_down_button=QPushButton('x 0.5')
       self.slow_down_button.setMaximumWidth(50)
@@ -339,7 +357,7 @@ class Time_scroller_widget(QWidget):
          self.show_time = self.show_time*2
          if self.play_button_txt=='Stop': #if program is playing
             self.timer.stop()
-            self.timer.start(self.show_time) #set new show_time
+            self.timer.start(int(self.show_time)) #set new show_time 
       else:
          self.step=self.step/2
    def create_speed_up(self):
@@ -351,7 +369,7 @@ class Time_scroller_widget(QWidget):
          self.show_time = self.show_time*0.5
          if self.play_button_txt=='Stop':
             self.timer.stop()
-            self.timer.start(self.show_time)
+            self.timer.start(int(self.show_time)) 
       else:
          self.step=self.step*2
       
@@ -370,7 +388,10 @@ class Time_scroller_widget(QWidget):
       self.axis_label1=QLabel('End time')
       self.axis_label2=QLabel('Current time')
       
+
    def init_data(self):
+      
+       
       """This method initialises all the additonal data after an image stack is available and readable.
       """ 
       try:
@@ -404,9 +425,6 @@ class Time_scroller_widget(QWidget):
 
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
           print('Meta data not readable')
-      except KeyError:
-         print('Dictionary access in get_times fails. Tif file does not have the adapted keys.')
-         traceback.print_exc()#prints the info of error
 
    def init_time_interval(self):
       """This method sets the time discretisation interval of the system, for the animation and scroll bar.
@@ -418,6 +436,7 @@ class Time_scroller_widget(QWidget):
          diff.append(self.time_data[i]-self.time_data[i-1])
       min_diff=min(diff)
       self.time_interval = math.floor(min_diff/4)#this makes sure a relevant discretisation of time is made for the animation
+   
    
    def set_frames_index(self):
       """This method sets self.interval_frames_index with image frames numbers. Each index corresponds the appropiate image frame
@@ -432,20 +451,21 @@ class Time_scroller_widget(QWidget):
             frame_index+=1
          self.interval_frames_index.append(frame_index)
 
+
    def play_step(self):
-      """This method advances the time of 1 time interval and takes care of updating the current displayed frame if necessary.
+      """This method advances the time of 1 time interval and takes car of updating the current displayed frame if necessary.
       """ 
       if self._viewer.dims.current_step[0]== self.number_frames-1:
          self._viewer.dims.set_current_step(0, 0)#restart at frame 0
          self.time_scroller.setValue(0)
       else:
-         self.time_scroller.setValue(self.time_scroller.value()+self.step)
+         self.time_scroller.setValue(self.time_scroller.value()+int(self.step))
          if self.interval_frames_index[self.time_scroller.value()] != self._viewer.dims.current_step[0]: #update viewer
             self._viewer.dims.set_current_step(0, self.interval_frames_index[self.time_scroller.value()])
   
    def play(self): # play and stop method
       if self.play_button_txt =='Play >>': 
-         self.timer.start(self.show_time)
+         self.timer.start(int(self.show_time))
          self.play_button_txt = 'Stop'
          self.play_button.setText(self.play_button_txt)
          self.play_button.setMaximumWidth(80)
@@ -475,6 +495,7 @@ class Time_scroller_widget(QWidget):
          self.axis_label1.setText(str(self.time_data[-1]))
       else:
          self.axis_label1.setText(str(self.time_scroller.value()*self.time_interval))
+
 
    def update_widget(self,event):
       if len(event.source)==0:

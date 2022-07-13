@@ -1,0 +1,13 @@
+graph TD;
+    A[Frame_rate_Widget.__init__]-->B(prepare grid_layout);
+    A-->C[_init_qtplt_widgets];
+    B-->D[qt.layout.addLayout];
+    C-->D;
+    D-->E(set singleshot self.timer=Qtimer);
+    E-->F(connects);
+    F-->G[self.timer];
+    F-->H[self_viewer.layers.events.inserted];
+    F-->I[self_viewer.layers.events.removed];
+    G-->L[init_data];
+    H-->M[init_after_timer];
+    I-->N[update widget];

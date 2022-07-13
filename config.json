@@ -1,0 +1,21 @@
+{
+    "trace_qt_events": true,
+    "trace_file_on_start": "tmp/latest.json",
+    "trace_callables": [
+        "framerate"
+    ],
+    "callable_lists": {
+        "framerate": [
+            "eda_napari._widget.Frame_rate_Widget.init_data",
+            "eda_napari._widget.Frame_rate_Widget.slow_mo",
+            "eda_napari._widget.Frame_rate_Widget.plot_frame_data",
+            "eda_napari._widget.Frame_rate_Widget.qtplot_slider_position",
+            "eda_napari._widget.Frame_rate_Widget.plot_frame_rate",
+            "eda_napari._widget.Frame_rate_Widget.qtplot_frame_data",
+            "eda_napari._widget.Frame_rate_Widget.qtplot_frame_rate",
+            "eda_napari._widget.Frame_rate_Widget.init_qtplt_widgets",
+            "eda_napari._widget.Frame_rate_Widget.get_times",
+            "eda_napari._widget.Frame_rate_Widget.get_frame_rate"
+        ]
+    }
+}
