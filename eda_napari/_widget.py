@@ -128,11 +128,11 @@ class Frame_rate_Widget(QWidget):
                #self._viewer.layers.index('Slow motion')
 
             #except(ValueError):# if no slowmo icon exists, it creates one
-            self.create_SlowMo_icon()
             self.slow_mo()
-            
+            self.create_SlowMo_icon()
+
             self._viewer.dims.events.current_step.connect(self.qtplot_slider_position)
-            self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
+            #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
 
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
@@ -245,20 +245,17 @@ class Frame_rate_Widget(QWidget):
       self.qtplot_frame_rate()
 
    def create_SlowMo_icon(self):
-      triangle=np.array([[20, 60], [60, 60], [40, 90]])
-      rectangle=np.array([[20, 40],[60, 40],[60,25],[20,25]])
-      polygon=[triangle,rectangle]
+      polygon = []
+      for i in range(len(self.slow_mo_array)):
+         if self.slow_mo_array[i]:
+            triangle=np.array([[i, 20, 60], [i, 60, 60], [i, 40, 90]])
+            rectangle=np.array([[i, 20, 40],[i, 60, 40],[i, 60, 25],[i, 20,25]])
+            polygon.append(triangle)
+            polygon.append(rectangle)
       self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
                           edge_color='black', name='Slow motion')
 
-      self.slow_mo_channel=self._viewer.layers.index('Slow motion')
-      self._viewer.layers[self.slow_mo_channel].visible=False #init to invisible
-      
-   def update_slowMo_icon(self,event):
-      if(self.slow_mo_array[event.source.current_step[0]]):
-         self._viewer.layers[self.slow_mo_channel].visible=True
-      else:
-         self._viewer.layers[self.slow_mo_channel].visible=False
+      self.slow_mo_channel=self._viewer.layers.index('Slow motion')      
 
    def slow_mo(self):
       size=len(self.time_data)
@@ -279,8 +276,8 @@ class Frame_rate_Widget(QWidget):
       If slow motion is removed then the napari viewer is disconnected to the slow motion shape.
       If all layers are removed the dock plugin is removed.
      """
-      if not ('Slow motion ' in event.source):
-         self._viewer.dims.events.current_step.disconnect(self.update_slowMo_icon)
+      #if not ('Slow motion ' in event.source):
+      #   self._viewer.dims.events.current_step.disconnect(self.update_slowMo_icon)
       if len(event.source)==0:
          try:
             self._viewer.window.remove_dock_widget(self)
@@ -504,6 +501,17 @@ class Time_scroller_widget(QWidget):
             self.image_path=None
          except:
             print('Dock already deleted')
+
+   def set_to_playing(self):
+      self.play_button_txt = 'Stop'
+      self.play_button.setText(self.play_button_txt)
+      self.play_button.setMaximumWidth(80)
+
+   def set_to_stopped(self):
+      self.timer.stop()
+      self.play_button_txt = 'Play >>'
+      self.play_button.setText(self.play_button_txt)
+      
          
   
 def get_times(widget):
