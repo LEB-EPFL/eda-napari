@@ -43,7 +43,7 @@ def time_widget_loaded(make_napari_viewer): #loads image to viewer then creates 
 
 #######TESTS########
 
-"""
+
 #####TIME SCROLL BAR
 
 #basic test
@@ -150,7 +150,7 @@ def test_up_scroller_dims (time_widget_loaded: Time_scroller_widget):
     time_widget_loaded.update_scroller_from_dims()
     time_widget_loaded.axis_label1.setText.assert_called()
 
-"""
+
 ######FRAME RATE WIDGET
 
 # initial tests
@@ -176,13 +176,11 @@ def test_init_after_imer(plot_widget_after_load: Frame_rate_Widget):
 
 # test get frame rate
 
-def test_get_frame_rate(plot_widget_after_load: Frame_rate_Widget):
-    framerate_Hz = plot_widget_after_load.get_frame_rate(unit_frame_r='Hz')
-    framerate_kHz = plot_widget_after_load.get_frame_rate(unit_frame_r='kHz')
-
-    N_frames= len(plot_widget_after_load.time_data)
-    assert framerate_Hz[0] == [1000/abs(plot_widget_after_load.time_data[1]-plot_widget_after_load.time_data[0])]#the first frame rate
-    assert framerate_kHz[0] == [1/abs(plot_widget_after_load.time_data[1]-plot_widget_after_load.time_data[0])]#the first frame rate
-    for i in range(1,N_frames):
-        assert framerate_Hz[i] == [1000/abs(plot_widget_after_load.time_data[1]-plot_widget_after_load.time_data[0])]#the first frame rate
-        assert framerate_kHz[i] == [1/abs(plot_widget_after_load.time_data[1]-plot_widget_after_load.time_data[0])]#the first frame rate
+def test_update_widget(plot_widget_after_load: Frame_rate_Widget):
+    evv = MagicMock()
+    evv.source = []
+    vieww = MagicMock()
+    plot_widget_after_load._viewer=vieww
+    plot_widget_after_load.update_widget(evv)
+    plot_widget_after_load._viewer.window.remove_dock_widget.assert_called()
+    assert plot_widget_after_load.image_path == None

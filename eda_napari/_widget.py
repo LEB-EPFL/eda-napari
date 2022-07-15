@@ -246,10 +246,12 @@ class Frame_rate_Widget(QWidget):
 
    def create_SlowMo_icon(self):
       polygon = []
+      xside = len(self._viewer.layers[0].data[0])
+      yside = len(self._viewer.layers[0].data[0])
       for i in range(len(self.slow_mo_array)):
          if self.slow_mo_array[i]:
-            triangle=np.array([[i, 20, 60], [i, 60, 60], [i, 40, 90]])
-            rectangle=np.array([[i, 20, 40],[i, 60, 40],[i, 60, 25],[i, 20,25]])
+            triangle=np.array([[i, int(yside/37), int(3*xside/37)], [i, int(3*yside/37), int(3*xside/37)], [i, int(2*yside/37), int(9*xside/74)]])
+            rectangle=np.array([[i, int(yside/37), int(2*xside/37)],[i, int(3*yside/37), int(2*xside/37)],[i, int(3*yside/37), int(1.25*xside/37)],[i, int(yside/37),int(1.25*xside/37)]])
             polygon.append(triangle)
             polygon.append(rectangle)
       self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
