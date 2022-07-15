@@ -1,4 +1,13 @@
-# The Plugin
+# The EDA-NAPARI plugin
+
+## Overview
+
+This plugin has been made in order to visualize more easy datas taken using Event Driven Acquisition (EDA).
+This framework register data during interesting events at a higher frame rate than the rest of the time.
+The EDA Framework is completely described in [this paper](https://www.biorxiv.org/content/10.1101/2021.10.04.463102v2).
+Being the intervals between each image capture non constants in the frame-by-frame visualization of napari there is no way assess the time intervals.
+This plugin reads the metadata associated to the images and offers two features that allow to locate in time the events debicted by the images.
+The code of this plugin is available at [this link](https://github.com/LEB-EPFL/eda-napari).
 
 ## How to install
 
