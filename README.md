@@ -4,9 +4,9 @@
 
 To install get the repository at https://github.com/LEB-EPFL/eda-napari.git in your computer
 Then open it and install it through the command
-'''sh
+```sh
 pip install eda-napari
-'''
+```
 
 
 ## Features
