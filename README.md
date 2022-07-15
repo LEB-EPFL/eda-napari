@@ -7,7 +7,12 @@ Then open it and install it through the command
 ```sh
 pip install eda-napari
 ```
+## How to activate it
 
+In the napari interface, click the plugin button which is in the menubar in the high-left of the screen.
+Then it should appear the eda-napari button. Clicking on it you will see the two widgets that you can apply: the frame rate widget and the time scroller widget. Click on the one that you want to use.
+
+![where the plugins can be activated](resources/eda_napari_activation_example.png)
 
 ## Features
 
