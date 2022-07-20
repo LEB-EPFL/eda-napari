@@ -16,6 +16,7 @@ import math
 import napari
 import tifffile
 import xmltodict
+import collections
 
 
 from PIL import Image
@@ -122,6 +123,7 @@ class Frame_rate_Widget(QWidget):
          if self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
             self.image_path = self._viewer.layers[0].source.path
             self.time_data=get_times(self)#init times of initial image
+            connect_eda(self)
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
             self.qtplot_frame_data()
             #try:
@@ -169,8 +171,9 @@ class Frame_rate_Widget(QWidget):
 
       N_frames= len(self.time_data)
       frame_rate=[conversion_factor/abs(self.time_data[1]-self.time_data[0])]#the first frame rate
-      for i in range(1,N_frames):
-         frame_rate.append(conversion_factor/abs(self.time_data[i]-self.time_data[i-1]))
+      for i in range(1,N_frames-1):
+         frame_rate.append(2*conversion_factor/abs(self.time_data[i+1]-self.time_data[i-1]))
+      frame_rate.append(conversion_factor/abs(self.time_data[N_frames-1]-self.time_data[N_frames-2]))#the last frame rate
       return frame_rate
 
    def qtplot_frame_rate(self,unit_frame_r='Hz'):
@@ -246,17 +249,25 @@ class Frame_rate_Widget(QWidget):
 
    def create_SlowMo_icon(self):
       polygon = []
-      xside = len(self._viewer.layers[0].data[0])
-      yside = len(self._viewer.layers[0].data[0])
-      for i in range(len(self.slow_mo_array)):
-         if self.slow_mo_array[i]:
-            triangle=np.array([[i, int(yside/37), int(3*xside/37)], [i, int(3*yside/37), int(3*xside/37)], [i, int(2*yside/37), int(9*xside/74)]])
-            rectangle=np.array([[i, int(yside/37), int(2*xside/37)],[i, int(3*yside/37), int(2*xside/37)],[i, int(3*yside/37), int(1.25*xside/37)],[i, int(yside/37),int(1.25*xside/37)]])
-            polygon.append(triangle)
-            polygon.append(rectangle)
-      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
-                          edge_color='black', name='Slow motion')
-
+      if self.image_path[-4:] == '.tif':
+         xside = len(self._viewer.layers[0].data[0][0])
+         yside = len(self._viewer.layers[0].data[0])
+         for i in range(len(self.slow_mo_array)):
+            if self.slow_mo_array[i]:
+               triangle=np.array([[i, int(yside/37), int(3*xside/37)], [i, int(3*yside/37), int(3*xside/37)], [i, int(2*yside/37), int(9*xside/74)]])
+               rectangle=np.array([[i, int(yside/37), int(2*xside/37)],[i, int(3*yside/37), int(2*xside/37)],[i, int(3*yside/37), int(1.25*xside/37)],[i, int(yside/37),int(1.25*xside/37)]])
+               polygon.append(triangle)
+               polygon.append(rectangle)
+      else:
+         xside = len(self._viewer.layers[0].data[0][0][0])
+         yside = len(self._viewer.layers[0].data[0][0])
+         for i in range(len(self.slow_mo_array)):
+            if self.slow_mo_array[i]:
+               triangle=np.array([[i, 0, int(yside/37), int(3*xside/37)], [i, 0, int(3*yside/37), int(3*xside/37)], [i, 0, int(2*yside/37), int(9*xside/74)]])
+               rectangle=np.array([[i, 0, int(yside/37), int(2*xside/37)],[i, 0, int(3*yside/37), int(2*xside/37)],[i, 0, int(3*yside/37), int(1.25*xside/37)],[i, 0, int(yside/37),int(1.25*xside/37)]])
+               polygon.append(triangle)
+               polygon.append(rectangle)
+      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2, edge_color='black', name='Slow motion')
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')      
 
    def slow_mo(self):
@@ -397,6 +408,7 @@ class Time_scroller_widget(QWidget):
          if self.image_path!=self._viewer.layers[0].source.path: #Only inits data if the layer is new
                self.image_path = self._viewer.layers[0].source.path
                self.time_data=get_times(self)#init times of image stack
+               connect_eda(self)
                self.number_frames=len(self.time_data)
                self.init_time_interval()
                self.set_frames_index()
@@ -513,9 +525,19 @@ class Time_scroller_widget(QWidget):
       self.timer.stop()
       self.play_button_txt = 'Play >>'
       self.play_button.setText(self.play_button_txt)
-      
-         
-  
+
+def connect_eda(widget):
+   if not widget.image_path[-4:] == '.tif':
+      if widget.image_path[-1] == '/':
+         lastslash = widget.image_path[:-1].rindex('/')+1
+      else:
+         lastslash = widget.image_path.rindex('/')+1
+      dirpath = widget.image_path[:lastslash]
+      edapath = dirpath + "EDA"
+      widget._viewer.open(edapath, plugin = "napari-ome-zarr")
+      widget._viewer.layers[-1].opacity = 0.25
+      widget._viewer.layers[-1].data = widget._viewer.layers[-1].data[:-1]
+
 def get_times(widget):
    """Method that gets the capture time from the metadata.
    
@@ -528,24 +550,35 @@ def get_times(widget):
    The following code is inspired from the solution for reading tiff files metadata from Willi Stepp.
    """
    times=[]
-   with tifffile.TiffFile(widget.image_path) as tif:
-      XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
-      dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
-      num_pages=len(tif.pages) #the number of images stacked
-      for frame in range(0,num_pages):
-         #time should be in either s or ms
-         if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==widget.channel: #checks if correct channel
-            frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
-            if frame_time_unit== 's' :
-               convert_unit_to_ms=1000
-               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-            elif frame_time_unit == 'ms':
-               convert_unit_to_ms=1
-               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-            else:
-               print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
+   if widget.image_path[-4:] == '.tif':
+      with tifffile.TiffFile(widget.image_path) as tif:
+         XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
+         dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+         num_pages=len(tif.pages) #the number of images stacked
+   else:
+      if widget.image_path[-1] == '/':
+         lastslash = widget.image_path[:-1].rindex('/')+1
+      else:
+         lastslash = widget.image_path.rindex('/')+1
+      dirpath = widget.image_path[:lastslash]
+      metapath = dirpath + "OME/METADATA.ome.xml"
+      XML_metadata = open(metapath,'r').read()
+   dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+   num_pages = len(dict_metadata['OME']['Image']['Pixels']['Plane'])
+   for frame in range(0,num_pages):
+      #time should be in either s or ms
+      if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==widget.channel: #checks if correct channel
+         frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
+         if frame_time_unit== 's' :
+            convert_unit_to_ms=1000
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         elif frame_time_unit == 'ms':
+            convert_unit_to_ms=1
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         else:
+            print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
    
-   times = [x - times[0] for x in times] #remove any offset from time=0
+   times = [x - times[0] for x in times] #remove any offset from time
    return times
 
 
