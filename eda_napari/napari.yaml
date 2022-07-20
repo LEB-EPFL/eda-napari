@@ -12,3 +12,4 @@ contributions:
       display_name: Plot frame rate
     - command: eda-napari.Time_scroller_widget
       display_name: Add time scroller
+  
