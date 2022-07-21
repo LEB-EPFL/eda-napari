@@ -3,7 +3,7 @@ test module eda-napari.
 """
 from re import X
 from tkinter import E
-from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget
+from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget, connect_eda, get_times
 from unittest.mock import MagicMock
 import pytest
 import os
@@ -184,3 +184,12 @@ def test_update_widget(plot_widget_after_load: Frame_rate_Widget):
     plot_widget_after_load.update_widget(evv)
     plot_widget_after_load._viewer.window.remove_dock_widget.assert_called()
     assert plot_widget_after_load.image_path == None
+
+
+######### General functions
+
+def test_connect_eda():
+    widi = MagicMock()
+    widi.image_path = '/aaaaaa'
+    connect_eda(widi)
+    widi._viewer.open.assert_called_with('/EDA', plugin = "napari-ome-zarr")
