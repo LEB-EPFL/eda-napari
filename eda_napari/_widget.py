@@ -61,14 +61,14 @@ class Frame_rate_Widget(QWidget):
       #main plot widget
       self.layout=QVBoxLayout(self)
       self.grid_layout = QGridLayout()
+      self.buttons_layout = QHBoxLayout()
      
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
 
       self.showing_scores = False
-      self.scoresbutton=QPushButton('Time at every Frame')
-      self.scoresbutton.setFlat(True)
+      self.scoresbutton=None
 
       self.grid_layout.setAlignment(Qt.AlignHCenter) #Woow possible to do this with external style sheet
       self.grid_layout.setSpacing(2)
@@ -92,7 +92,8 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
   
       self._init_qtplt_widgets() 
-      self.layout.addWidget(self.button_axis_change)
+      self.buttons_layout.addWidget(self.button_axis_change)
+      self.layout.addLayout(self.buttons_layout)
       self.layout.addLayout(self.grid_layout)
       #QTimer, this Q timer will be used to load data after a certain wait time
       self.Twait=2500
@@ -151,9 +152,10 @@ class Frame_rate_Widget(QWidget):
          print('Meta data not readable')
 
    def create_scores_button(self):
-      self.scoresbutton.setText('Time -> Event Score')
+      self.scoresbutton = QPushButton('Time -> Event Score')
       self.scoresbutton.setFlat(False)
       self.scoresbutton.clicked.connect(self.change_time_score)
+      self.buttons_layout.addWidget(self.scoresbutton)
 
    def init_after_timer(self): ##wooow directly put in connect
       self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
