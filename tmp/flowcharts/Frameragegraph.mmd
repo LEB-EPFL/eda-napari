@@ -1,13 +1,21 @@
 graph TD;
-    A[Frame_rate_Widget.__init__]-->B(prepare grid_layout);
-    A-->C[_init_qtplt_widgets];
-    B-->D[qt.layout.addLayout];
-    C-->D;
-    D-->E(set singleshot self.timer=Qtimer);
-    E-->F(connects);
-    F-->G[self.timer];
-    F-->H[self_viewer.layers.events.inserted];
-    F-->I[self_viewer.layers.events.removed];
-    G-->L[init_data];
-    H-->M[init_after_timer];
-    I-->N[update widget];
+    subgraph ngff
+    O(../OME/METADATA.ome.xml);
+    E(../EDA) -- /nn_images -----> M[/connect_eda/];
+    E -- /analyser_output ----->N[/get_event_scores/];
+    M -- EDA IMages --> X[GUI for ngff];
+    N -- Event Scores --> X;
+    end
+    subgraph tif
+    I(Image);
+    Z(GUI for .tif);
+    end
+    A[Plot Widget] --> B[/init_data/];
+    B -..-> Q{only for ngff}
+    Q -. calls .-> M;
+    Q -. calls .-> N;
+    B-. calls .-> C[/get_times/];
+    O -- Times -----> C;
+    I -- Times -----> C;
+    C -- Times --> Z;
+    C -- Times --> X;

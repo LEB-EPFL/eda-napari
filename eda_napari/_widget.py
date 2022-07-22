@@ -135,7 +135,8 @@ class Frame_rate_Widget(QWidget):
             if Path(self.image_path).suffix != '.tif':
                connect_eda(self)
                self.event_scores = get_event_score(self)
-               self.create_scores_button()
+               #self.create_scores_button()
+               self
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
             self.qtplot_frame_data()
             #try:
@@ -151,14 +152,13 @@ class Frame_rate_Widget(QWidget):
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
 
+   """
    def create_scores_button(self):
       self.scoresbutton = QPushButton('Time -> Event Score')
       self.scoresbutton.setFlat(False)
       self.scoresbutton.clicked.connect(self.change_time_score)
       self.buttons_layout.addWidget(self.scoresbutton)
-
-   def init_after_timer(self): ##wooow directly put in connect
-      self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
+"""
 
    def qtplot_times(self):
       self.canvas1.clear() #clear plot before plotting
@@ -167,8 +167,11 @@ class Frame_rate_Widget(QWidget):
       self.canvas1.setTitle('Evolution of elapsed time')
       self.canvas1.plot(range(1,len(self.time_data)+1),self.time_data)
       redpen = qtplt.mkPen(color=(255,0,0),width=1)
-      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initialaize a vertical line
       self.canvas1.addItem(self.line_1)
+   
+   def init_after_timer(self): ##wooow directly put in connect
+         self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
 
    def get_frame_rate(self,unit_frame_r='Hz'):
       """ Method that returns frame rate.
@@ -217,12 +220,22 @@ class Frame_rate_Widget(QWidget):
       #props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
       #self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
 
-   def qtplot_event_scores(self):
+   def qtplot_event_scores_frame(self):
       self.canvas1.clear() #clear plot before plotting
       self.canvas1.setLabel('left','Event Score')
       self.canvas1.setLabel('bottom','Frame number')
       self.canvas1.setTitle('Event score at each frame')
       self.canvas1.plot(range(1,len(self.time_data)+1),self.event_scores)
+      redpen = qtplt.mkPen(color=(255,0,0),width=1)
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.canvas1.addItem(self.line_1)
+
+   def qtplot_event_scores_time(self):
+      self.canvas1.clear() #clear plot before plotting
+      self.canvas1.setLabel('left','Event Score')
+      self.canvas1.setLabel('bottom','Time')
+      self.canvas1.setTitle('Event score at each moment')
+      self.canvas1.plot(self.time_data,self.event_scores)
       redpen = qtplt.mkPen(color=(255,0,0),width=1)
       self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
       self.canvas1.addItem(self.line_1)
@@ -269,12 +282,13 @@ class Frame_rate_Widget(QWidget):
       if self.frame_x_axis_time:
          button_txt='Time -> Frame number'
          self.current_frame_txt='Current frame number = '
-         
+         self.qtplot_event_scores_time()
       else:
          button_txt='Frame number -> Time'
+         self.qtplot_event_scores_frame()
       self.button_axis_change.setText(button_txt)
       self.qtplot_frame_rate()
-
+   """
    def change_time_score(self):
       self.showing_scores = not self.showing_scores
       if self.showing_scores:
@@ -283,7 +297,7 @@ class Frame_rate_Widget(QWidget):
       else:
          self.scoresbutton.setText('Event Score -> Time')
          self.qtplot_times()
-
+   """
    def create_SlowMo_icon(self):
       polygon = []
       if self.image_path[-4:] == '.tif':
