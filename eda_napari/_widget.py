@@ -594,6 +594,34 @@ def connect_eda(widget):
    widget._viewer.layers[-1].opacity = 0.25
    widget._viewer.layers[-1].data = widget._viewer.layers[-1].data[:-1]
 
+def get_dict_from_ome_metadata(usepath: Path):
+   if usepath.suffix == '.tif':
+         with tifffile.TiffFile(usepath) as tif:
+            XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
+   else:
+      metapath = str(usepath.parent / 'OME' / 'METADATA.ome.xml')
+      XML_metadata = open(metapath,'r').read()
+   dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+   return dict_metadata
+
+def get_times_from_dict(dict_metadata: dict, channel = 0):
+   times=[]
+   num_pages = len(dict_metadata['OME']['Image']['Pixels']['Plane'])
+   for frame in range(0,num_pages):
+      #time should be in either s or ms
+      if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==channel: #checks if correct channel
+         frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
+         if frame_time_unit== 's' :
+            convert_unit_to_ms=1000
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         elif frame_time_unit == 'ms':
+            convert_unit_to_ms=1
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         else:
+            print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
+   times = [x - times[0] for x in times] #remove any offset from time
+   return times
+
 def get_times(widget):
    """Method that gets the capture time from the metadata.
    
@@ -605,30 +633,9 @@ def get_times(widget):
    from time t=0 subrtracted to the times before it is returned.
    The following code is inspired from the solution for reading tiff files metadata from Willi Stepp.
    """
-   times=[]
-   with Path(widget.image_path) as usepath:
-      if usepath.suffix == '.tif':
-         with tifffile.TiffFile(widget.image_path) as tif:
-            XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
-      else:
-         metapath = str(usepath.parent / 'OME' / 'METADATA.ome.xml')
-         XML_metadata = open(metapath,'r').read()
-   dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
-   num_pages = len(dict_metadata['OME']['Image']['Pixels']['Plane'])
-   for frame in range(0,num_pages):
-      #time should be in either s or ms
-      if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==widget.channel: #checks if correct channel
-         frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
-         if frame_time_unit== 's' :
-            convert_unit_to_ms=1000
-            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-         elif frame_time_unit == 'ms':
-            convert_unit_to_ms=1
-            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-         else:
-            print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
-   
-   times = [x - times[0] for x in times] #remove any offset from time
+
+   dict_metadata=get_dict_from_ome_metadata(Path(widget.image_path)) #converts the xml to a dictionary to be readable
+   times = get_times_from_dict(dict_metadata, channel=widget.channel) #remove any offset from time
    return times
 
 
