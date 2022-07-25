@@ -8,7 +8,9 @@
         "framerate": [
             "eda_napari._widget.Frame_rate_Widget.init_data",
             "eda_napari._widget.Frame_rate_Widget.slow_mo",
-            "eda_napari._widget.Frame_rate_Widget.update_slowMo_icon"
+            "eda_napari._widget.Frame_rate_Widget.update_slowMo_icon",
+            "eda_napari._widget.Frame_rate_Widget.qtplot_event_scores_frame",
+            "eda_napari._widget.Frame_rate_Widget.qtplot_slider_position"
         ]
     }
 }

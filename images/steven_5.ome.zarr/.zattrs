@@ -1,0 +1,14 @@
+{
+    "well": {
+        "images": [
+            {
+                "acquisition": 1,
+                "path": "Images"
+            },
+            {
+                "acquisition": 1,
+                "path": "EDA"
+            },
+        "version": "0.4"
+    }
+}

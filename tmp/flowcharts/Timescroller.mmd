@@ -1,0 +1,5 @@
+graph TD;
+    A[Time Scroller Widget] -. calls .-> B[/get_times/];
+    B x-- if tif takes data from  --x D(Image);
+    B ==Time_Data ===> C[GUI];
+    B x-- ngff takes data from --x E(../OME/METADATA.ome.xml);

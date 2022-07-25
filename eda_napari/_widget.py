@@ -12,10 +12,13 @@ from qtpy.QtCore import Qt, QTimer
 import numpy as np
 from pathlib import Path
 import math
+from ome_zarr import io
 
 import napari
 import tifffile
 import xmltodict
+import collections
+from pathlib import Path
 
 
 from PIL import Image
@@ -37,6 +40,7 @@ class Frame_rate_Widget(QWidget):
       the execution of specific functions and plots the frame rates of an OME.tiff file inserted in the napari viewer.
    """
 
+
    def __init__(self, napari_viewer):
       """Constructor of the Frame_rate_Widget.
       
@@ -48,6 +52,7 @@ class Frame_rate_Widget(QWidget):
       self.image_path=None
       self.time_data=None
       self.frame_rate_data=None
+      self.event_scores=None
       self.channel=0
       self.frame_x_axis_time=True
       self.setStyleSheet(label_style)
@@ -56,11 +61,14 @@ class Frame_rate_Widget(QWidget):
       #main plot widget
       self.layout=QVBoxLayout(self)
       self.grid_layout = QGridLayout()
+      self.buttons_layout = QHBoxLayout()
      
       self.button_txt=('Time -> Frame number')
       self.button_axis_change=QPushButton(self.button_txt)
       self.button_axis_change.clicked.connect(self.change_axis)
-      
+
+      self.showing_scores = False
+      self.scoresbutton=None
 
       self.grid_layout.setAlignment(Qt.AlignHCenter) #Woow possible to do this with external style sheet
       self.grid_layout.setSpacing(2)
@@ -84,7 +92,8 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
   
       self._init_qtplt_widgets() 
-      self.layout.addWidget(self.button_axis_change)
+      self.buttons_layout.addWidget(self.button_axis_change)
+      self.layout.addLayout(self.buttons_layout)
       self.layout.addLayout(self.grid_layout)
       #QTimer, this Q timer will be used to load data after a certain wait time
       self.Twait=2500
@@ -109,6 +118,7 @@ class Frame_rate_Widget(QWidget):
       self.canvas1 = qtplt.PlotWidget()
       self.canvas2 = qtplt.PlotWidget()
       self.layout.addWidget(self.canvas1)
+      self.layout.addWidget(self.scoresbutton)
       self.layout.addWidget(self.canvas2)
       self.canvas1.setBackground('w')
       self.canvas2.setBackground('w')
@@ -122,6 +132,11 @@ class Frame_rate_Widget(QWidget):
          if self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
             self.image_path = self._viewer.layers[0].source.path
             self.time_data=get_times(self)#init times of initial image
+            if Path(self.image_path).suffix != '.tif':
+               connect_eda(self)
+               self.event_scores = get_event_score(self)
+               #self.create_scores_button()
+               self
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
             self.qtplot_frame_data()
             #try:
@@ -136,9 +151,14 @@ class Frame_rate_Widget(QWidget):
 
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
-      
-   def init_after_timer(self): ##wooow directly put in connect
-      self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
+
+   """
+   def create_scores_button(self):
+      self.scoresbutton = QPushButton('Time -> Event Score')
+      self.scoresbutton.setFlat(False)
+      self.scoresbutton.clicked.connect(self.change_time_score)
+      self.buttons_layout.addWidget(self.scoresbutton)
+"""
 
    def qtplot_times(self):
       self.canvas1.clear() #clear plot before plotting
@@ -147,8 +167,11 @@ class Frame_rate_Widget(QWidget):
       self.canvas1.setTitle('Evolution of elapsed time')
       self.canvas1.plot(range(1,len(self.time_data)+1),self.time_data)
       redpen = qtplt.mkPen(color=(255,0,0),width=1)
-      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initialaize a vertical line
       self.canvas1.addItem(self.line_1)
+   
+   def init_after_timer(self): ##wooow directly put in connect
+         self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
 
    def get_frame_rate(self,unit_frame_r='Hz'):
       """ Method that returns frame rate.
@@ -169,8 +192,9 @@ class Frame_rate_Widget(QWidget):
 
       N_frames= len(self.time_data)
       frame_rate=[conversion_factor/abs(self.time_data[1]-self.time_data[0])]#the first frame rate
-      for i in range(1,N_frames):
-         frame_rate.append(conversion_factor/abs(self.time_data[i]-self.time_data[i-1]))
+      for i in range(1,N_frames-1):
+         frame_rate.append(2*conversion_factor/abs(self.time_data[i+1]-self.time_data[i-1]))
+      frame_rate.append(conversion_factor/abs(self.time_data[N_frames-1]-self.time_data[N_frames-2]))#the last frame rate
       return frame_rate
 
    def qtplot_frame_rate(self,unit_frame_r='Hz'):
@@ -195,6 +219,26 @@ class Frame_rate_Widget(QWidget):
       self.canvas2.addItem(self.line_2)
       #props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
       #self.text_box=self.ax2.text(0.05, 0.95, txt_text_box, transform=self.ax2.transAxes, fontsize=8, verticalalignment='top', bbox=props,color='red')
+
+   def qtplot_event_scores_frame(self):
+      self.canvas1.clear() #clear plot before plotting
+      self.canvas1.setLabel('left','Event Score')
+      self.canvas1.setLabel('bottom','Frame number')
+      self.canvas1.setTitle('Event score at each frame')
+      self.canvas1.plot(range(1,len(self.time_data)+1),self.event_scores)
+      redpen = qtplt.mkPen(color=(255,0,0),width=1)
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.canvas1.addItem(self.line_1)
+
+   def qtplot_event_scores_time(self):
+      self.canvas1.clear() #clear plot before plotting
+      self.canvas1.setLabel('left','Event Score')
+      self.canvas1.setLabel('bottom','Time')
+      self.canvas1.setTitle('Event score at each moment')
+      self.canvas1.plot(self.time_data,self.event_scores)
+      redpen = qtplt.mkPen(color=(255,0,0),width=1)
+      self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
+      self.canvas1.addItem(self.line_1)
 
 
    def qtplot_frame_data(self):#,event = None)
@@ -238,25 +282,43 @@ class Frame_rate_Widget(QWidget):
       if self.frame_x_axis_time:
          button_txt='Time -> Frame number'
          self.current_frame_txt='Current frame number = '
-         
+         self.qtplot_event_scores_time()
       else:
          button_txt='Frame number -> Time'
+         self.qtplot_event_scores_frame()
       self.button_axis_change.setText(button_txt)
       self.qtplot_frame_rate()
-
+   """
+   def change_time_score(self):
+      self.showing_scores = not self.showing_scores
+      if self.showing_scores:
+         self.scoresbutton.setText('Time -> Event Score')
+         self.qtplot_event_scores()
+      else:
+         self.scoresbutton.setText('Event Score -> Time')
+         self.qtplot_times()
+   """
    def create_SlowMo_icon(self):
       polygon = []
-      xside = len(self._viewer.layers[0].data[0])
-      yside = len(self._viewer.layers[0].data[0])
-      for i in range(len(self.slow_mo_array)):
-         if self.slow_mo_array[i]:
-            triangle=np.array([[i, int(yside/37), int(3*xside/37)], [i, int(3*yside/37), int(3*xside/37)], [i, int(2*yside/37), int(9*xside/74)]])
-            rectangle=np.array([[i, int(yside/37), int(2*xside/37)],[i, int(3*yside/37), int(2*xside/37)],[i, int(3*yside/37), int(1.25*xside/37)],[i, int(yside/37),int(1.25*xside/37)]])
-            polygon.append(triangle)
-            polygon.append(rectangle)
-      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2,
-                          edge_color='black', name='Slow motion')
-
+      if self.image_path[-4:] == '.tif':
+         xside = len(self._viewer.layers[0].data[0][0])
+         yside = len(self._viewer.layers[0].data[0])
+         for i in range(len(self.slow_mo_array)):
+            if self.slow_mo_array[i]:
+               triangle=np.array([[i, int(yside/37), int(3*xside/37)], [i, int(3*yside/37), int(3*xside/37)], [i, int(2*yside/37), int(9*xside/74)]])
+               rectangle=np.array([[i, int(yside/37), int(2*xside/37)],[i, int(3*yside/37), int(2*xside/37)],[i, int(3*yside/37), int(1.25*xside/37)],[i, int(yside/37),int(1.25*xside/37)]])
+               polygon.append(triangle)
+               polygon.append(rectangle)
+      else:
+         xside = len(self._viewer.layers[0].data[0][0][0])
+         yside = len(self._viewer.layers[0].data[0][0])
+         for i in range(len(self.slow_mo_array)):
+            if self.slow_mo_array[i]:
+               triangle=np.array([[i, 0, int(yside/37), int(3*xside/37)], [i, 0, int(3*yside/37), int(3*xside/37)], [i, 0, int(2*yside/37), int(9*xside/74)]])
+               rectangle=np.array([[i, 0, int(yside/37), int(2*xside/37)],[i, 0, int(3*yside/37), int(2*xside/37)],[i, 0, int(3*yside/37), int(1.25*xside/37)],[i, 0, int(yside/37),int(1.25*xside/37)]])
+               polygon.append(triangle)
+               polygon.append(rectangle)
+      self._viewer.add_shapes(polygon, shape_type='polygon', face_color='white',edge_width=2, edge_color='black', name='Slow motion')
       self.slow_mo_channel=self._viewer.layers.index('Slow motion')      
 
    def slow_mo(self):
@@ -397,6 +459,8 @@ class Time_scroller_widget(QWidget):
          if self.image_path!=self._viewer.layers[0].source.path: #Only inits data if the layer is new
                self.image_path = self._viewer.layers[0].source.path
                self.time_data=get_times(self)#init times of image stack
+               if Path(self.image_path).suffix != '.tif':
+                  connect_eda(self)
                self.number_frames=len(self.time_data)
                self.init_time_interval()
                self.set_frames_index()
@@ -513,9 +577,51 @@ class Time_scroller_widget(QWidget):
       self.timer.stop()
       self.play_button_txt = 'Play >>'
       self.play_button.setText(self.play_button_txt)
-      
-         
-  
+
+def get_event_score(widget):
+   edapath = str(Path(widget.image_path).parent / 'EDA')
+   loc = io.parse_url(edapath, mode = 'r')
+   almost = loc.load('analyser_output').compute()
+   score = []
+   for i in range(1,len(almost)):
+      score.append(almost[i][1])
+   return score
+
+
+def connect_eda(widget):
+   edapath = str(Path(widget.image_path).parent / 'EDA')
+   widget._viewer.open(edapath, plugin = "napari-ome-zarr")
+   widget._viewer.layers[-1].opacity = 0.25
+   widget._viewer.layers[-1].data = widget._viewer.layers[-1].data[:-1]
+
+def get_dict_from_ome_metadata(usepath: Path):
+   if usepath.suffix == '.tif':
+         with tifffile.TiffFile(usepath) as tif:
+            XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
+   else:
+      metapath = str(usepath.parent / 'OME' / 'METADATA.ome.xml')
+      XML_metadata = open(metapath,'r').read()
+   dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
+   return dict_metadata
+
+def get_times_from_dict(dict_metadata: dict, channel = 0):
+   times=[]
+   num_pages = len(dict_metadata['OME']['Image']['Pixels']['Plane'])
+   for frame in range(0,num_pages):
+      #time should be in either s or ms
+      if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==channel: #checks if correct channel
+         frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
+         if frame_time_unit== 's' :
+            convert_unit_to_ms=1000
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         elif frame_time_unit == 'ms':
+            convert_unit_to_ms=1
+            times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
+         else:
+            print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
+   times = [x - times[0] for x in times] #remove any offset from time
+   return times
+
 def get_times(widget):
    """Method that gets the capture time from the metadata.
    
@@ -527,25 +633,9 @@ def get_times(widget):
    from time t=0 subrtracted to the times before it is returned.
    The following code is inspired from the solution for reading tiff files metadata from Willi Stepp.
    """
-   times=[]
-   with tifffile.TiffFile(widget.image_path) as tif:
-      XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
-      dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
-      num_pages=len(tif.pages) #the number of images stacked
-      for frame in range(0,num_pages):
-         #time should be in either s or ms
-         if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==widget.channel: #checks if correct channel
-            frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
-            if frame_time_unit== 's' :
-               convert_unit_to_ms=1000
-               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-            elif frame_time_unit == 'ms':
-               convert_unit_to_ms=1
-               times.append(convert_unit_to_ms*float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaT']))
-            else:
-               print('Time units not in ms or s but in '+ frame_time_unit+'. A conversion to ms or s must be done.')
-   
-   times = [x - times[0] for x in times] #remove any offset from time=0
+
+   dict_metadata=get_dict_from_ome_metadata(Path(widget.image_path)) #converts the xml to a dictionary to be readable
+   times = get_times_from_dict(dict_metadata, channel=widget.channel) #remove any offset from time
    return times
 
 

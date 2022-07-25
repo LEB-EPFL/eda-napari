@@ -38,3 +38,41 @@ In all plots the actual frame number and time are pointed out by a red vertical 
 ### Time scroll plugin
 
 This widget is to animate the time-lapse linearly in time. This is useful because napari’s scroll bar animates individual frames with a constant time interval without taking into account the actual time from the metadata. In the time scroller it is also possible to modify the speed of the animation thanks to a speed up and a speed down button.
+
+## Details
+The plugin can be used on images of the .tif and NGFF format.
+The Time Scroller Widget will get the time datas in a different way according to the image format. Here is the data flowchart:
+
+```mermaid
+graph TD;
+    A[Time Scroller Widget] -. calls .-> B[/get_times/];
+    B x-- if tif takes data from  --x D(Image);
+    B ==Time_Data ===> C[GUI];
+    B x-- ngff takes data from --x E(../OME/METADATA.ome.xml);
+```
+
+The Frame Rate Widget will also get the datas differently according to the file's format. Moreover, for NGFF files the widget will take also the event scores and the EDA event score density images and plot the event scores. Here is the flowchart:
+
+```mermaid
+graph TD;
+    subgraph ngff
+    O(../OME/METADATA.ome.xml);
+    E(../EDA) -- /nn_images -----> M[/connect_eda/];
+    E -- /analyser_output ----->N[/get_event_scores/];
+    M -- EDA IMages --> X[GUI for ngff];
+    N -- Event Scores --> X;
+    end
+    subgraph tif
+    I(Image);
+    Z(GUI for .tif);
+    end
+    A[Plot Widget] --> B[/init_data/];
+    B -..-> Q{only for ngff}
+    Q -. calls .-> M;
+    Q -. calls .-> N;
+    B-. calls .-> C[/get_times/];
+    O -- Times -----> C;
+    I -- Times -----> C;
+    C -- Times --> Z;
+    C -- Times --> X;
+```

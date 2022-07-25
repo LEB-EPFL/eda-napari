@@ -3,13 +3,14 @@ test module eda-napari.
 """
 from re import X
 from tkinter import E
-from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget
+from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget, connect_eda, get_times
 from unittest.mock import MagicMock
 import pytest
 import os
 #import time
 
-test_image_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/example_image.tif'
+test_image_tif_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/example_image.tif'
+test_image_ngff_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/steven_5.ome.zarr/Images'
 
 #####Fixtures#####
 @pytest.fixture
@@ -18,16 +19,17 @@ def plot_widget(make_napari_viewer):  #creates Frame_rate_Widget for the viewer
     yield Frame_rate_Widget(viewer) 
 
 @pytest.fixture
-def plot_widget_after_load(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
+def plot_widget_after_load_tif(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
     Frame_rate_Widget(viewer)
-    viewer.open(test_image_path)
+    viewer.open(test_image_tif_path)
     yield Frame_rate_Widget(viewer) 
 
 @pytest.fixture
-def plot_widget_loaded(make_napari_viewer): #loads image to viewer then creates widget
+def plot_widget_after_load_ngff(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
-    viewer.open(test_image_path)
+    Frame_rate_Widget(viewer)
+    viewer.open(test_image_ngff_path)
     yield Frame_rate_Widget(viewer) 
 
 @pytest.fixture
@@ -38,7 +40,7 @@ def time_widget(make_napari_viewer): #creates Time_scroller_widget_widget for th
 @pytest.fixture
 def time_widget_loaded(make_napari_viewer): #loads image to viewer then creates widget
     viewer = make_napari_viewer(show=False)
-    viewer.open(test_image_path)
+    viewer.open(test_image_tif_path)
     yield Time_scroller_widget(viewer)
 
 #######TESTS########
@@ -53,7 +55,7 @@ def test_time_widget_attribute(time_widget: Time_scroller_widget):
 
 def test_time_widget_open_image(time_widget: Time_scroller_widget):
     assert time_widget.image_path == None, 'path Attribute no init with None'
-    time_widget._viewer.open(test_image_path)
+    time_widget._viewer.open(test_image_tif_path)
     assert  time_widget.image_path != None,'path Attribute not updated from None'
     assert  time_widget.time_data != None,'time Attribute not updated from None'
 
@@ -158,29 +160,44 @@ def test_up_scroller_dims (time_widget_loaded: Time_scroller_widget):
 def test_plot_widget_attribute(plot_widget: Frame_rate_Widget):
     assert plot_widget.frame_x_axis_time == True
 
-def test_add_time_widget_frame(plot_widget_loaded: Frame_rate_Widget):
-        assert plot_widget_loaded.image_path != None,'path Attribute not updated from None'
-        assert plot_widget_loaded.time_data != None,'time Attribute not updated from None'
+def test_add_time_widget_frame(plot_widget_after_load_tif: Frame_rate_Widget):
+        assert plot_widget_after_load_tif.image_path != None,'path Attribute not updated from None'
+        assert plot_widget_after_load_tif.time_data != None,'time Attribute not updated from None'
 
-def test_plot_widget_open_image(plot_widget_after_load: Frame_rate_Widget):
-    assert plot_widget_after_load.image_path != None, 'path Attribute not loaded'
+def test_plot_widget_open_image(plot_widget_after_load_tif: Frame_rate_Widget):
+    assert plot_widget_after_load_tif.image_path != None, 'path Attribute not loaded'
 
 
 # test init after timer
 
-def test_init_after_imer(plot_widget_after_load: Frame_rate_Widget):
+def test_init_after_imer(plot_widget_after_load_tif: Frame_rate_Widget):
     ftime = MagicMock()
-    plot_widget_after_load.timer = ftime
-    plot_widget_after_load.init_after_timer()
-    plot_widget_after_load.timer.start.assert_called_with(plot_widget_after_load.Twait)
+    plot_widget_after_load_tif.timer = ftime
+    plot_widget_after_load_tif.init_after_timer()
+    plot_widget_after_load_tif.timer.start.assert_called_with(plot_widget_after_load_tif.Twait)
 
 # test get frame rate
 
-def test_update_widget(plot_widget_after_load: Frame_rate_Widget):
+def test_update_widget(plot_widget_after_load_tif: Frame_rate_Widget):
     evv = MagicMock()
     evv.source = []
     vieww = MagicMock()
-    plot_widget_after_load._viewer=vieww
-    plot_widget_after_load.update_widget(evv)
-    plot_widget_after_load._viewer.window.remove_dock_widget.assert_called()
-    assert plot_widget_after_load.image_path == None
+    plot_widget_after_load_tif._viewer=vieww
+    plot_widget_after_load_tif.update_widget(evv)
+    plot_widget_after_load_tif._viewer.window.remove_dock_widget.assert_called()
+    assert plot_widget_after_load_tif.image_path == None
+
+
+######### General functions
+
+def test_connect_eda():
+    widi = MagicMock()
+    widi.image_path = '/aaaaaa'
+    connect_eda(widi)
+    widi._viewer.open.assert_called_with('/EDA', plugin = "napari-ome-zarr")
+
+def test_get_times_tif(plot_widget_after_load_tif: Frame_rate_Widget):
+    assert len(plot_widget_after_load_tif.time_data) == 20
+
+def test_get_times_ngff(plot_widget_after_load_ngff: Frame_rate_Widget):
+    assert len(plot_widget_after_load_ngff.time_data) == 50

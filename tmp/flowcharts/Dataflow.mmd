@@ -1,0 +1,18 @@
+graph TD;
+    A(Image) --> B{tif or ngff file?};
+    B -- tif --> C[AICSImageIO reader];
+    B -- ngff--> D[ome-zarr reader];
+    D -- Image --->E[Napari Viewer];
+    C -- Image --->E;
+    C-. calls .-oT[/get_times/];
+    C --> T
+    D -. calls .-oT
+    H(../OME/METADATA.ome.xml)---->T;
+    T -- Time Data -->F[Time Scroller];
+    T -- Time Data -->G[Plot Widget];
+    D -. calls .-> Z[/connect EDA/];
+    D -. calls .-> S[/get_event_scores/];
+    L(../EDA)-- /nn_images ----> Z;
+    L -- /analyser_output ----> S;
+    S -- Event Scores --> G;
+    Z -- EDA Images --> G;
