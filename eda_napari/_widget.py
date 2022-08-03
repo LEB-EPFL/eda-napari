@@ -19,6 +19,7 @@ import tifffile
 import xmltodict
 import collections
 from pathlib import Path
+from ast import literal_eval
 
 
 from PIL import Image
@@ -56,6 +57,7 @@ class Frame_rate_Widget(QWidget):
       self.channel=0
       self.frame_x_axis_time=True
       self.setStyleSheet(label_style)
+      self.eda_parameters: dict = None
 
       
       #main plot widget
@@ -90,6 +92,22 @@ class Frame_rate_Widget(QWidget):
       self.grid_layout.addWidget(self.frame_rate_label, 0, 0)
       self.frame_rate_value=QLabel("-")
       self.grid_layout.addWidget(self.frame_rate_value, 0, 1)
+
+      self.real_interval_label = QLabel("Time Interval: ")
+      self.grid_layout.addWidget(self.real_interval_label, 1, 2)
+      self.real_interval_value=QLabel("-")
+      self.grid_layout.addWidget(self.real_interval_value, 1, 3)
+
+
+      self.th_interval_label = QLabel("Theoretical: ")
+      self.grid_layout.addWidget(self.th_interval_label, 2, 2)
+      self.th_interval_value=QLabel("-")
+      self.grid_layout.addWidget(self.th_interval_value, 2, 3)
+
+      self.event_score_label = QLabel("Event Score: ")
+      self.grid_layout.addWidget(self.event_score_label, 0, 2)
+      self.event_score_value=QLabel("-")
+      self.grid_layout.addWidget(self.event_score_value, 0, 3)
   
       self._init_qtplt_widgets() 
       self.buttons_layout.addWidget(self.button_axis_change)
@@ -132,11 +150,6 @@ class Frame_rate_Widget(QWidget):
          if self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
             self.image_path = self._viewer.layers[0].source.path
             self.time_data=get_times(self)#init times of initial image
-            if Path(self.image_path).suffix != '.tif':
-               connect_eda(self)
-               self.event_scores = get_event_score(self)
-               #self.create_scores_button()
-               self
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
             self.qtplot_frame_data()
             #try:
@@ -149,8 +162,25 @@ class Frame_rate_Widget(QWidget):
             self._viewer.dims.events.current_step.connect(self.qtplot_slider_position)
             #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
 
+
+
+            
+            
+
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
+      if Path(self.image_path).suffix != '.tif':
+            connect_eda(self)
+            self.event_scores = get_event_score(self)
+            #self.create_scores_button()
+            self.qtplot_event_scores_time()
+            parampath = Path(self.image_path).parent / 'EDA' / 'parameters'
+            if parampath.exists():
+               self.eda_parameters = get_eda_params(self)
+               self.qtplot_add_threshhold()
+               self._viewer.dims.events.current_step.connect(self.update_event_grid)
+               self.update_event_grid()
+         
 
    """
    def create_scores_button(self):
@@ -197,6 +227,14 @@ class Frame_rate_Widget(QWidget):
       frame_rate.append(conversion_factor/abs(self.time_data[N_frames-1]-self.time_data[N_frames-2]))#the last frame rate
       return frame_rate
 
+   def get_time_interval(self):
+      N_frames= len(self.time_data)
+      frame_interval=[]#the first frame rate
+      for i in range(1,N_frames):
+         frame_interval.append(self.time_data[i]-self.time_data[i-1])
+      frame_interval.append(0)#the last frame rate
+      return frame_interval
+
    def qtplot_frame_rate(self,unit_frame_r='Hz'):
       
       self.canvas2.clear() #clear plot before plotting
@@ -229,6 +267,13 @@ class Frame_rate_Widget(QWidget):
       redpen = qtplt.mkPen(color=(255,0,0),width=1)
       self.line_1=qtplt.InfiniteLine(pos = self._viewer.dims.current_step[0],pen=redpen)#initilaise a vertical line
       self.canvas1.addItem(self.line_1)
+      
+   def qtplot_add_threshhold(self):
+      bluepen = qtplt.mkPen(color=(0,255,0),width=1)
+      self.thresh_high=qtplt.InfiniteLine(pos = self.eda_parameters['lower_threshold'],angle = 0,pen=bluepen)#initilaise a vertical line
+      self.canvas1.addItem(self.thresh_high)
+      self.thresh_low=qtplt.InfiniteLine(pos = self.eda_parameters['upper_threshold'],angle = 0,pen=bluepen)#initilaise a vertical line
+      self.canvas1.addItem(self.thresh_low)
 
    def qtplot_event_scores_time(self):
       self.canvas1.clear() #clear plot before plotting
@@ -263,19 +308,30 @@ class Frame_rate_Widget(QWidget):
       After moving the slider on napari this function is called to update the vertical lines. The vertical
       lines show the frame rate and capture time of the current image disaplayed napari viewer"""
       current_frame=event.source.current_step[0]
-      self.line_1.setValue(current_frame) #update line
+      
       if self.frame_x_axis_time:
          self.line_2.setValue(self.time_data[current_frame])#update according to x axis (time or frame)
+         self.line_2.setValue(self.time_data[current_frame])
          #self.text_box.set_text('Time of current frame = '+str(self.time_data[current_frame])+'[ms]')
       else: 
          self.line_2.setValue(current_frame)
+         self.line_1.setValue(current_frame) #update line
          #self.text_box.set_text('Current frame number = '+str(self._viewer.dims.current_step[0]))
 
-      self.frame_rate_value.setText(str(np.around(self.frame_rate_data[current_frame],5)) + ' [Hz]')#update Qlabels
+      self.frame_rate_value.setText(str(np.around(self.get_frame_rate()[current_frame],5)) + ' [Hz]')#update Qlabels
       self.frame_number_value.setText(str(current_frame))
-      self.frame_time_value.setText(str(self.time_data[current_frame])+' [ms]')
+      self.frame_time_value.setText(str(np.around(self.time_data[current_frame],5))+' [ms]')
 
-     
+      
+
+   def update_event_grid(self):
+      current_frame=self._viewer.dims.current_step[0]
+      self.real_interval_value.setText(str(np.around(self.get_time_interval()[current_frame],5)) + ' [ms]')#update Qlabels
+      if self.slow_mo_array[current_frame]:
+         self.th_interval_value.setText(str(self.eda_parameters['slow_interval'])+' [ms]')
+      else:
+         self.th_interval_value.setText(str(self.eda_parameters['fast_interval'])+' [ms]')
+      self.event_score_value.setText(str(np.around(self.event_scores[current_frame],5)))
 
    def change_axis(self):
       self.frame_x_axis_time=not self.frame_x_axis_time
@@ -286,6 +342,7 @@ class Frame_rate_Widget(QWidget):
       else:
          button_txt='Frame number -> Time'
          self.qtplot_event_scores_frame()
+      self.qtplot_add_threshhold()
       self.button_axis_change.setText(button_txt)
       self.qtplot_frame_rate()
    """
@@ -587,6 +644,11 @@ def get_event_score(widget):
       score.append(almost[i][1])
    return score
 
+def get_eda_params(widget):
+   edapath = str(Path(widget.image_path).parent / 'EDA')
+   loc = io.parse_url(edapath, mode = 'r')
+   almost = literal_eval(loc.load('parameters').compute().item())
+   return almost
 
 def connect_eda(widget):
    edapath = str(Path(widget.image_path).parent / 'EDA')
