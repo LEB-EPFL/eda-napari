@@ -3,7 +3,7 @@ from curses.panel import bottom_panel
 from napari.utils.notifications import show_info
 import os
 import pyqtgraph as qtplt
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar, QDialog
 import magicgui
 from magicgui import magic_factory
 from typing import Union
@@ -142,6 +142,11 @@ class Frame_rate_Widget(QWidget):
       self.canvas2.setBackground('w')
       self.init_data() #try to init data if it exists
 
+   def _init_parameter_button(self):
+      self.param_button = QPushButton('EDA parameters')
+      self.param_button.clicked.connect(self.show_eda__parameters)
+      self.layout.addWidget(self.param_button)
+
      
       #self.setWindowTitle('Plot frame rate or frame times')
       
@@ -180,6 +185,7 @@ class Frame_rate_Widget(QWidget):
                self.qtplot_add_threshhold()
                self._viewer.dims.events.current_step.connect(self.update_event_grid)
                self.update_event_grid()
+               self._init_parameter_button()
          
 
    """
@@ -405,6 +411,23 @@ class Frame_rate_Widget(QWidget):
             self.image_path=None
          except:
             print('Dock already deleted')
+
+   def show_eda__parameters(self):
+      dlg = Param_Dialog(self)
+      dlg.setWindowTitle('EDA Parameters')
+      dlg.exec()
+
+class Param_Dialog(QDialog):
+   def __init__(self,widget: Frame_rate_Widget):
+      super().__init__()
+      self._widget = widget
+      self.setStyleSheet(label_style)
+      self._parameters = widget.eda_parameters
+      self.setLayout(QGridLayout())
+      for i in range(len(self._parameters.keys())):
+         self.layout().addWidget(QLabel(list(self._parameters.keys())[i]),i,0)
+         self.layout().addWidget(QLabel(str(self._parameters[list(self._parameters.keys())[i]])),i,1)
+      
 
 
 
