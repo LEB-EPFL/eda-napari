@@ -1,0 +1,15 @@
+name: leb.eda-napari
+contributions:
+  commands:
+    - id: leb.eda-napari.frame_rate_widget
+      title: open my widget
+      python_name: leb.eda_napari._widget:Frame_rate_Widget
+    - id: leb.eda-napari.Time_scroller_widget
+      title: add time scroller widget
+      python_name: leb.eda_napari._widget:Time_scroller_widget
+  widgets:
+    - command: leb.eda-napari.frame_rate_widget 
+      display_name: Plot frame rate
+    - command: leb.eda-napari.Time_scroller_widget
+      display_name: Add time scroller
+  

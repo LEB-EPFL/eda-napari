@@ -3,7 +3,7 @@ test module eda-napari.
 """
 from re import X
 from tkinter import E
-from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget, connect_eda, get_times
+from leb.eda_napari._widget import Frame_rate_Widget, Time_scroller_widget, connect_eda, get_times
 from unittest.mock import MagicMock
 import pytest
 import os

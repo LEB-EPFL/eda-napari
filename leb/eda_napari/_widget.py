@@ -27,7 +27,7 @@ from PIL import Image
 from skimage.filters import threshold_otsu
 
 
-label_style = read_text("eda_napari", "q_label_stylesheet.qss")
+label_style = read_text("leb.eda_napari", "q_label_stylesheet.qss")
 
 
 #Union is a type: it forms the math union.

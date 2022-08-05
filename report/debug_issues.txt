@@ -1,0 +1,5 @@
+cd /home/elio/Desktop/LEB_Internship/eda-napari ; /usr/bin/env /home/elio/Desktop/LEB_Internship/napariLEB/bin/python /home/elio/.vscode/extensions/ms-python.python-2022.10.1/pythonFiles/lib/python/debugpy/adapter/../../debugpy/launcher 37999 -- /home/elio/Desktop/LEB_Internship/eda-napari/debug.py 
+napari.manifest -> 'eda-napari' could not be imported: Cannot find module 'eda_napari' declared in entrypoint: 'eda_napari:napari.yaml'
+Invalid schema for package 'leb-epfl.eda-napari', please run 'npe2 validate leb-epfl.eda-napari' to check for manifest errors.
+napari.manifest -> 'eda-napari' could not be imported: Cannot find module 'eda_napari' declared in entrypoint: 'eda_napari:napari.yaml'
+Invalid schema for package 'leb-epfl.eda-napari', please run 'npe2 validate leb-epfl.eda-napari' to check for manifest errors.

@@ -1,0 +1,8 @@
+🅇 Invalid! 2 validation errors for PluginManifest
+name
+  'leb-epfl.eda-napari' is not a valid python package name. (type=value_error)
+__root__
+  Commands identifiers must start with the current package name None
+            the following commands where found to break this assumption:
+                ['leb-epfl.eda-napari.frame_rate_widget', 'leb-epfl.eda-napari.Time_scroller_widget']
+ (type=value_error)
