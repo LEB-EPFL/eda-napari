@@ -1,0 +1,3 @@
+graft eda_napari/
+prune eda_napari/*.egg-info
+global-exclude *.py[cod]
