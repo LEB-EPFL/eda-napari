@@ -1,3 +1,4 @@
+from importlib.resources import read_text
 
 from curses.panel import bottom_panel
 from napari.utils.notifications import show_info
@@ -25,8 +26,8 @@ from ast import literal_eval
 from PIL import Image
 from skimage.filters import threshold_otsu
 
-stylesheet = open(str(os.path.dirname(__file__))+'/q_label_stylesheet.qss',"r")
-label_style = stylesheet.read()
+
+label_style = read_text("eda_napari", "q_label_stylesheet.qss")
 
 
 #Union is a type: it forms the math union.
