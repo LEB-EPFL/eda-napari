@@ -21,14 +21,12 @@ def plot_widget(make_napari_viewer):  #creates Frame_rate_Widget for the viewer
 @pytest.fixture
 def plot_widget_after_load_tif(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
-    Frame_rate_Widget(viewer)
     viewer.open(test_image_tif_path)
     yield Frame_rate_Widget(viewer) 
 
 @pytest.fixture
 def plot_widget_after_load_ngff(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
-    Frame_rate_Widget(viewer)
     viewer.open(test_image_ngff_path)
     yield Frame_rate_Widget(viewer) 
 
