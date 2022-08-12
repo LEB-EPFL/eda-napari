@@ -168,14 +168,7 @@ class Frame_rate_Widget(QWidget):
             self._viewer.dims.events.current_step.connect(self.qtplot_slider_position)
             #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
 
-
-
-            
-            
-
-      except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
-         print('Meta data not readable')
-      if Path(self.image_path).suffix != '.tif':
+         if Path(self.image_path).suffix != '.tif':
             connect_eda(self)
             self.event_scores = get_event_score(self)
             #self.create_scores_button()
@@ -187,7 +180,8 @@ class Frame_rate_Widget(QWidget):
                self._viewer.dims.events.current_step.connect(self.update_event_grid)
                self.update_event_grid()
                self._init_parameter_button()
-         
+      except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
+         print('Data non initialized')
 
    """
    def create_scores_button(self):
