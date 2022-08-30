@@ -202,6 +202,7 @@ class Frame_rate_Widget(QWidget):
       self.canvas1.addItem(self.line_1)
    
    def init_after_timer(self): ##wooow directly put in connect
+      if len(self._viewer.layers) < 1:
          self.timer.start(self.Twait) #restarts the timer with a timeout of Twait ms
 
    def get_frame_rate(self,unit_frame_r='Hz'):
