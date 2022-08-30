@@ -1,3 +1,3 @@
-graft eda_napari/
-prune eda_napari/*.egg-info
+graft leb/eda_napari/
+prune leb/eda_napari/*.egg-info
 global-exclude *.py[cod]
