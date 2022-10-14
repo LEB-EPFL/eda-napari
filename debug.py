@@ -3,10 +3,17 @@
 import napari
 import os
 
-viewer = napari.Viewer() 
-path=  str(os.path.dirname(__file__))+'/images/steven_192.ome.zarr/Images'#"https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.3/9836842.zarr/"
-viewer.open(path, plugin = 'napari-ome-zarr')
-#path2=  str(os.path.dirname(__file__))+'/images/steven_5.ome.zarr/EDA'#"https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.3/9836842.zarr/"
-#viewer.open(path2, plugin = 'napari-ome-zarr')
-viewer.window.add_plugin_dock_widget('eda-napari','Plot frame rate') #'Add time scroller'
+viewer = napari.Viewer()
+# path=  str(os.path.dirname(__file__))+'/images/steven_192.ome.zarr/Images'#"https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.3/9836842.zarr/"
+# viewer.open(path, plugin = 'napari-ome-zarr')
+# #path2=  str(os.path.dirname(__file__))+'/images/steven_5.ome.zarr/EDA'#"https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.3/9836842.zarr/"
+# #viewer.open(path2, plugin = 'napari-ome-zarr')
+# viewer.window.add_plugin_dock_widget('eda-napari','Plot frame rate') #'Add time scroller'
+# napari.run()
+
+
+
+# path = "C:/Users/stepp/Desktop/zarr_test/mock/FOV_010.ome.zarr/Images"
+viewer.window.add_plugin_dock_widget('eda-napari','Zarr Updater')
 napari.run()
+# viewer.open(path, plugin = 'napari-ome-zarr')
