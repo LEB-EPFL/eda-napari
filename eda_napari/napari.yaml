@@ -9,7 +9,7 @@ contributions:
       python_name: eda_napari._widget:Time_scroller_widget
     - id: eda-napari.Zarr_update_widget
       title: Zarr Updater
-      python_name: eda_napari._widget:Zarr_update_widget
+      python_name: eda_napari._updater:Zarr_update_widget
   widgets:
     - command: eda-napari.frame_rate_widget
       display_name: Plot frame rate
