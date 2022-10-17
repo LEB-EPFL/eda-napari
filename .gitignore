@@ -22,6 +22,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.cpython
+*.pyc
 
 # Editors
 *.vscode
