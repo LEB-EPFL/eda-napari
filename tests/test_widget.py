@@ -5,9 +5,11 @@ from re import X
 from tkinter import E
 from eda_napari._widget import Frame_rate_Widget, Time_scroller_widget, connect_eda, get_times
 from unittest.mock import MagicMock
+import npe2
 import pytest
 import os
-#import time
+import time
+import napari_ome_zarr
 
 test_image_tif_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/example_image.tif'
 test_image_ngff_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/steven_5.ome.zarr/Images'
@@ -16,26 +18,30 @@ test_image_ngff_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/s
 @pytest.fixture
 def plot_widget(make_napari_viewer):  #creates Frame_rate_Widget for the viewer
     viewer = make_napari_viewer(show=False)
-    yield Frame_rate_Widget(viewer) 
+    yield Frame_rate_Widget(viewer)
 
 @pytest.fixture
 def plot_widget_after_load_tif(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
     Frame_rate_Widget(viewer)
     viewer.open(test_image_tif_path)
-    yield Frame_rate_Widget(viewer) 
+    yield Frame_rate_Widget(viewer)
 
 @pytest.fixture
 def plot_widget_after_load_ngff(make_napari_viewer):  #creates Frame_rate_Widget for the viewer loads data then return the widget
     viewer = make_napari_viewer(show=False)
-    Frame_rate_Widget(viewer)
+    pm = npe2.PluginManager.instance()
+    pm.discover(include_npe1=True)
+    pm.index_npe1_adapters()
+    my_widget = Frame_rate_Widget(viewer)
     viewer.open(test_image_ngff_path)
-    yield Frame_rate_Widget(viewer) 
+    time.sleep(3)
+    yield my_widget
 
 @pytest.fixture
 def time_widget(make_napari_viewer): #creates Time_scroller_widget_widget for the viewer
     viewer = make_napari_viewer(show=False)
-    yield Time_scroller_widget(viewer) 
+    yield Time_scroller_widget(viewer)
 
 @pytest.fixture
 def time_widget_loaded(make_napari_viewer): #loads image to viewer then creates widget
@@ -194,7 +200,7 @@ def test_connect_eda():
     widi = MagicMock()
     widi.image_path = '/aaaaaa'
     connect_eda(widi)
-    widi._viewer.open.assert_called_with('/EDA', plugin = "napari-ome-zarr")
+    widi._viewer.open.assert_called_with(os.path.sep + 'EDA', plugin = "napari-ome-zarr")
 
 def test_get_times_tif(plot_widget_after_load_tif: Frame_rate_Widget):
     assert len(plot_widget_after_load_tif.time_data) == 20

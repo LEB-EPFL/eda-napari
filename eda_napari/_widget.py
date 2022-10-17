@@ -157,7 +157,7 @@ class Frame_rate_Widget(QWidget):
 
    def init_data(self):
       try:
-         if self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
+         if self._viewer.layers and self.image_path != self._viewer.layers[0].source.path : #update data if new source is added
             self.image_path = self._viewer.layers[0].source.path
             self.time_data=get_times(self)#init times of initial image
             self.frame_rate_data=self.get_frame_rate()#init frame rate of initial image
@@ -171,10 +171,12 @@ class Frame_rate_Widget(QWidget):
 
             self._viewer.dims.events.current_step.connect(self.qtplot_slider_position)
             #self._viewer.dims.events.current_step.connect(self.update_slowMo_icon)
-
       except(IndexError,AttributeError): # if no image is placed yet then Errors would occur when the source is retrieved
          print('Meta data not readable')
-      if Path(self.image_path).suffix != '.tif':
+
+      if self.image_path is not None and all([
+              Path(self.image_path).suffix != '.tif',
+              "EDA" not in [layer.name for layer in self._viewer.layers]]):
             connect_eda(self)
             self.event_scores = get_event_score(self)
             #self.create_scores_button()
@@ -612,6 +614,7 @@ class Time_scroller_widget(QWidget):
          if self.image_path!=self._viewer.layers[0].source.path: #Only inits data if the layer is new
                self.image_path = self._viewer.layers[0].source.path
                self.time_data=get_times(self)#init times of image stack
+
                if Path(self.image_path).suffix != '.tif':
                   connect_eda(self)
                self.number_frames=len(self.time_data)
@@ -640,7 +643,7 @@ class Time_scroller_widget(QWidget):
                self.data_is_avable=True
 
       except (IndexError,AttributeError): # if no image is found then an index Error would occur
-          print('Meta data not readable')
+         print('Meta data not readable')
 
    def init_time_interval(self):
       """This method sets the time discretisation interval of the system, for the animation and scroll bar.
@@ -753,11 +756,13 @@ def connect_eda(widget):
    widget._viewer.layers[-1].data = widget._viewer.layers[-1].data[:-1]
 
 def get_dict_from_ome_metadata(usepath: Path):
+
    if usepath.suffix == '.tif':
          with tifffile.TiffFile(usepath) as tif:
             XML_metadata= tif.ome_metadata #returns a reference to a function that accesses the metadata as a OME XML file
    else:
       metapath = str(usepath.parent / 'OME' / 'METADATA.ome.xml')
+
       XML_metadata = open(metapath,'r').read()
    dict_metadata=xmltodict.parse(XML_metadata) #converts the xml to a dictionary to be readable
    return dict_metadata
@@ -766,7 +771,7 @@ def get_times_from_dict(dict_metadata: dict, channel = 0):
    times=[]
    num_pages = len(dict_metadata['OME']['Image']['Pixels']['Plane'])
    for frame in range(0,num_pages):
-      #time should be in either s or ms
+      #time should be in either s or msc
       if float(dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@TheC'])==channel: #checks if correct channel
          frame_time_unit=dict_metadata['OME']['Image']['Pixels']['Plane'][frame]['@DeltaTUnit']
          if frame_time_unit== 's' :

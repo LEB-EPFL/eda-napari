@@ -3,6 +3,8 @@
 import napari
 import os
 
+from eda_napari._widget import Frame_rate_Widget
+
 viewer = napari.Viewer()
 # path=  str(os.path.dirname(__file__))+'/images/steven_192.ome.zarr/Images'#"https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.3/9836842.zarr/"
 # viewer.open(path, plugin = 'napari-ome-zarr')
@@ -14,6 +16,9 @@ viewer = napari.Viewer()
 
 
 # path = "C:/Users/stepp/Desktop/zarr_test/mock/FOV_010.ome.zarr/Images"
-viewer.window.add_plugin_dock_widget('eda-napari','Zarr Updater')
+# viewer.window.add_plugin_dock_widget('eda-napari','Zarr Updater')
+viewer.window.add_plugin_dock_widget('eda-napari','Plot frame rate')
+test_image_ngff_path= './images/steven_5.ome.zarr/Images'
+viewer.open(test_image_ngff_path, plugin='napari-ome-zarr')
 napari.run()
 # viewer.open(path, plugin = 'napari-ome-zarr')
