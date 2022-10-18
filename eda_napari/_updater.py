@@ -5,6 +5,7 @@ from qtpy.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QCheckBox,
 from qtpy.QtCore import  QTimer
 import time
 import ome_zarr
+import ome_zarr.reader
 import napari
 import collections
 
@@ -31,8 +32,6 @@ class Zarr_update_widget(QWidget):
       self.layout.addWidget(self.interval_label)
       self.layout.addWidget(self.update_interval)
       self.layout.addWidget(self.update_button)
-
-
 
       self.layers_to_update = collections.defaultdict()
       self.current_sources = collections.defaultdict(lambda: collections.defaultdict(list))
@@ -80,7 +79,8 @@ class Zarr_update_widget(QWidget):
          self.timer.start()
 
    def remove_layer(self, layer):
-      self.current_sources[layer.source[-1].source.path]['layers'].remove(layer.source[-1].name)
+      print(layer)
+      self.current_sources[layer.source[layer.index].source.path]['layers'].remove(layer.source[layer.index].name)
       # Check if list is empty and delete source completely
-      if not self.current_sources[layer.source[-1].source.path]['layers']:
-         del self.current_sources[layer.source[-1].source.path]
+      if not self.current_sources[layer.source[layer.index].source.path]['layers']:
+         del self.current_sources[layer.source[layer.index].source.path]

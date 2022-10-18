@@ -9,7 +9,6 @@ import npe2
 import pytest
 import os
 import time
-import napari_ome_zarr
 
 test_image_tif_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/example_image.tif'
 test_image_ngff_path= str(os.path.dirname(os.path.dirname(__file__)))+'/images/steven_5.ome.zarr/Images'

@@ -16,8 +16,8 @@ viewer = napari.Viewer()
 
 
 # path = "C:/Users/stepp/Desktop/zarr_test/mock/FOV_010.ome.zarr/Images"
-# viewer.window.add_plugin_dock_widget('eda-napari','Zarr Updater')
-viewer.window.add_plugin_dock_widget('eda-napari','Plot frame rate')
+viewer.window.add_plugin_dock_widget('eda-napari','Zarr Updater')
+# viewer.window.add_plugin_dock_widget('eda-napari','Plot frame rate')
 test_image_ngff_path= './images/steven_5.ome.zarr/Images'
 viewer.open(test_image_ngff_path, plugin='napari-ome-zarr')
 napari.run()
