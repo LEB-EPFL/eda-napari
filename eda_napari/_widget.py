@@ -1,9 +1,7 @@
 
 from importlib.resources import read_text
 
-from curses.panel import bottom_panel
-from napari.utils.notifications import show_info
-import os
+
 import pyqtgraph as qtplt
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QScrollBar, QDialog, QCheckBox, QLineEdit, QSizePolicy
 from qtpy.QtCore import QSize
